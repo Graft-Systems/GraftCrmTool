@@ -1,0 +1,138 @@
+export const DEFAULT_RELATIONSHIP_STAGES = [
+  { key: "met", label: "Met", sortOrder: 0 },
+  { key: "exploring", label: "Exploring", sortOrder: 1 },
+  { key: "active_conversation", label: "Active conversation", sortOrder: 2 },
+  { key: "pilot", label: "Pilot", sortOrder: 3 },
+  { key: "customer", label: "Customer", sortOrder: 4 },
+  { key: "partner", label: "Partner", sortOrder: 5 },
+  { key: "investor", label: "Investor", sortOrder: 6 },
+  { key: "dormant", label: "Dormant", sortOrder: 7 },
+] as const;
+
+export const STALE_DAYS_OPTIONS = [14, 30, 60, 90] as const;
+
+export const INTERACTION_TYPES = [
+  { value: "call", label: "Call" },
+  { value: "meeting", label: "Meeting" },
+  { value: "email", label: "Email" },
+  { value: "event", label: "Event" },
+  { value: "voice_note", label: "Voice note" },
+  { value: "other", label: "Other" },
+] as const;
+
+export const INTERACTION_SOURCES = [
+  { value: "manual", label: "Manual" },
+  { value: "in_app_voice", label: "In-app voice" },
+  { value: "paste", label: "Paste" },
+  { value: "wispr_api", label: "Wispr API" },
+  { value: "calendar", label: "Calendar" },
+] as const;
+
+export type InteractionSource = (typeof INTERACTION_SOURCES)[number]["value"];
+
+export const TASK_STATUSES = [
+  { value: "open", label: "Open" },
+  { value: "done", label: "Done" },
+  { value: "cancelled", label: "Cancelled" },
+] as const;
+
+export const INBOX_VIEWS = [
+  "my",
+  "overdue",
+  "today",
+  "week",
+  "unassigned",
+] as const;
+
+export type InboxView = (typeof INBOX_VIEWS)[number];
+
+export const DEAL_STAGES = [
+  { value: "open", label: "Open" },
+  { value: "qualified", label: "Qualified" },
+  { value: "proposal", label: "Proposal" },
+  { value: "negotiation", label: "Negotiation" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+] as const;
+
+export const OPEN_DEAL_STAGES = ["open", "qualified", "proposal", "negotiation"] as const;
+
+export const PILOT_STATUSES = [
+  { value: "planned", label: "Planned" },
+  { value: "active", label: "Active" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+] as const;
+
+export const ACTIVE_PILOT_STATUSES = ["planned", "active"] as const;
+
+export const INVESTOR_STAGES = [
+  { value: "prospecting", label: "Prospecting" },
+  { value: "diligence", label: "Diligence" },
+  { value: "committed", label: "Committed" },
+  { value: "passed", label: "Passed" },
+] as const;
+
+export const PARTNER_PROGRAM_STATUSES = [
+  { value: "exploring", label: "Exploring" },
+  { value: "active", label: "Active" },
+  { value: "paused", label: "Paused" },
+  { value: "ended", label: "Ended" },
+] as const;
+
+export const CAPITAL_RECEIPT_SOURCES = [
+  { value: "deal", label: "Deal" },
+  { value: "investor", label: "Investor" },
+  { value: "distributor", label: "Distributor" },
+  { value: "wine_club", label: "Wine club" },
+  { value: "tasting_room", label: "Tasting room" },
+  { value: "partner", label: "Partner" },
+  { value: "other", label: "Other" },
+] as const;
+
+export const WINE_DISTRIBUTION_MODELS = [
+  { value: "dtc", label: "Direct-to-consumer" },
+  { value: "wholesale", label: "Wholesale" },
+  { value: "wine_club", label: "Wine club" },
+  { value: "hybrid", label: "Hybrid" },
+  { value: "restaurant_only", label: "Restaurant only" },
+] as const;
+
+export const TASTING_ROOM_STATUSES = [
+  { value: "open_daily", label: "Open daily" },
+  { value: "weekends_only", label: "Weekends only" },
+  { value: "by_appointment", label: "By appointment" },
+  { value: "closed", label: "Closed to public" },
+] as const;
+
+export const CALENDAR_PROVIDERS = [
+  { value: "google", label: "Google Calendar" },
+  { value: "microsoft", label: "Microsoft 365" },
+  { value: "demo", label: "Demo calendar" },
+] as const;
+
+export const CALENDAR_ACCOUNT_STATUSES = [
+  { value: "connected", label: "Connected" },
+  { value: "disconnected", label: "Disconnected" },
+  { value: "error", label: "Needs reconnect" },
+] as const;
+
+export const CALENDAR_LINK_STATUSES = [
+  { value: "unmatched", label: "No match yet" },
+  { value: "suggested", label: "Suggested" },
+  { value: "confirmed", label: "Confirmed" },
+  { value: "skipped", label: "Skipped" },
+] as const;
+
+export const INTERNAL_GRAFT_DOMAINS = ["graft.systems", "graftsystems.com"] as const;
+
+export const NOTABLE_VARIETALS = [
+  "Cabernet Sauvignon",
+  "Pinot Noir",
+  "Chardonnay",
+  "Syrah",
+  "Sauvignon Blanc",
+  "Zinfandel",
+  "Merlot",
+  "Rosé",
+] as const;
