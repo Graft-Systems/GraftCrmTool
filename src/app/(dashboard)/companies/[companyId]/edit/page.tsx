@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
-import { CompanyForm } from "@/components/crm/company-form";
-import { updateCompanyAction } from "@/app/(dashboard)/actions";
+import { CompanyForm } from "@/components/companies/company-form";
+import { updateCompanyAction } from "@/server/actions/companies";
 import {
   getCompany,
   listKnownTags,

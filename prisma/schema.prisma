@@ -16,6 +16,9 @@ model Workspace {
   stages              RelationshipStage[]
   capitalReceipts     CapitalReceipt[]
   calendarEvents      CalendarEvent[]
+  wisprIngests        WisprIngest[]
+  emailDigests        EmailDigest[]
+  comments            Comment[]
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 }
@@ -36,9 +39,11 @@ model User {
   ownedTasks          FollowUpTask[]    @relation("TaskOwner")
   createdTasks        FollowUpTask[]    @relation("TaskCreator")
   createdInteractions Interaction[]     @relation("InteractionCreator")
-  activityEvents      ActivityEvent[]   @relation("ActivityActor")
   capitalReceipts     CapitalReceipt[]  @relation("CapitalReceiptCreator")
   calendarAccounts    CalendarAccount[]
+  wisprConnection     WisprConnection?
+  emailDigests        EmailDigest[]     @relation("EmailDigestRecipient")
+  comments            Comment[]         @relation("CommentAuthor")
   accounts            Account[]
   sessions            Session[]
   createdAt           DateTime        @default(now())
@@ -110,11 +115,11 @@ model Company {
   pilots              Pilot[]
   investorProfile     InvestorProfile?
   partnerProfile      PartnerProfile?
-  wineryProfile       WineryProfile?
   interactions        Interaction[]
   followUpTasks       FollowUpTask[]
-  activityEvents      ActivityEvent[]
   calendarEvents      CalendarEvent[]
+  comments            Comment[]
+  wisprIngestSuggestions WisprIngest[] @relation("WisprIngestSuggested")
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
@@ -163,6 +168,8 @@ model Interaction {
   aiTagHints      Json?
   calendarEventId String?        @unique
   calendarEvent   CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
+  wisprIngest     WisprIngest?
+  comments        Comment[]
   createdById     String
   createdBy       User           @relation("InteractionCreator", fields: [createdById], references: [id], onDelete: Restrict)
   followUpTasks   FollowUpTask[]
@@ -180,6 +187,9 @@ model Deal {
   name          String
   stage         String         @default("open")
   valueEstimate Float?
+  link          String?
+  startsAt      DateTime?
+  endsAt        DateTime?
   expectedClose DateTime?
   ownerId       String?
   owner         User?          @relation("DealOwner", fields: [ownerId], references: [id], onDelete: SetNull)
@@ -192,6 +202,50 @@ model Deal {
 
   @@index([companyId, stage])
   @@index([ownerId])
+}
+
+model WisprConnection {
+  id              String        @id @default(cuid())
+  userId          String        @unique
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        String        @default("demo")
+  externalUserId  String?
+  displayName     String?
+  status          String        @default("connected")
+  apiKey          String?
+  webhookSecret   String?
+  lastSyncedAt    DateTime?
+  connectedAt     DateTime      @default(now())
+  ingests         WisprIngest[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model WisprIngest {
+  id                    String           @id @default(cuid())
+  workspaceId           String
+  workspace             Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  wisprConnectionId     String
+  wisprConnection       WisprConnection  @relation(fields: [wisprConnectionId], references: [id], onDelete: Cascade)
+  externalNoteId        String
+  receivedAt            DateTime         @default(now())
+  rawText               String
+  aiSummary             String?
+  aiNeeds               Json             @default("[]")
+  aiSuggestedTasks      Json             @default("[]")
+  aiStageHint           String?
+  aiTagHints            Json             @default("[]")
+  interactionType       String           @default("voice_note")
+  suggestedCompanyId    String?
+  suggestedCompany      Company?         @relation("WisprIngestSuggested", fields: [suggestedCompanyId], references: [id], onDelete: SetNull)
+  status                String           @default("pending")
+  appliedInteractionId  String?          @unique
+  appliedInteraction    Interaction?     @relation(fields: [appliedInteractionId], references: [id], onDelete: SetNull)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@unique([wisprConnectionId, externalNoteId])
+  @@index([workspaceId, status])
 }
 
 model CalendarAccount {
@@ -302,24 +356,6 @@ model InvestorProfile {
   updatedAt       DateTime @updatedAt
 }
 
-model WineryProfile {
-  id                    String   @id @default(cuid())
-  companyId             String   @unique
-  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  region                String?
-  varietals             Json     @default("[]")
-  annualProductionCases Int?
-  distributionModel     String?
-  tastingRoomStatus     String?
-  winemakerName         String?
-  established           Int?
-  websiteShop           String?
-  nextStep              String?
-  notes                 String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-}
-
 model PartnerProfile {
   id               String   @id @default(cuid())
   companyId        String   @unique
@@ -362,16 +398,47 @@ model FollowUpTask {
   @@index([status, dueAt])
 }
 
-model ActivityEvent {
-  id        String   @id @default(cuid())
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  actorId   String?
-  actor     User?    @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
-  kind      String
-  summary   String
-  metadata  Json?
-  createdAt DateTime @default(now())
+model EmailDigest {
+  id                String    @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  recipientId       String
+  recipient         User      @relation("EmailDigestRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  recipientEmail    String
+  kind              String    @default("daily_digest")
+  provider          String    @default("outbox")
+  subject           String
+  bodyHtml          String
+  bodyText          String
+  taskIds           Json      @default("[]")
+  meetingIds        Json      @default("[]")
+  taskCount         Int       @default(0)
+  meetingCount      Int       @default(0)
+  status            String    @default("queued")
+  error             String?
+  providerMessageId String?
+  sentAt            DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([workspaceId, createdAt])
+  @@index([recipientId, createdAt])
+}
+
+model Comment {
+  id            String       @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  interactionId String?
+  interaction   Interaction? @relation(fields: [interactionId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User         @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  body          String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   @@index([companyId, createdAt])
+  @@index([interactionId, createdAt])
 }

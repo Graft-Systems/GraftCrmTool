@@ -10,7 +10,7 @@ export default async function DashboardLayout({
   const session = await requireSession();
 
   return (
-    <div className="flex min-h-screen bg-muted/30">
+    <div className="flex min-h-screen bg-background">
       <DashboardSidebar
         userName={session.user.name ?? session.user.email ?? "Teammate"}
         userEmail={session.user.email ?? ""}
@@ -20,7 +20,7 @@ export default async function DashboardLayout({
         }}
       />
       <main className="flex-1 overflow-x-hidden">
-        <div className="mx-auto max-w-7xl px-6 py-8">{children}</div>
+        <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">{children}</div>
       </main>
     </div>
   );

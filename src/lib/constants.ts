@@ -47,12 +47,12 @@ export const INBOX_VIEWS = [
 export type InboxView = (typeof INBOX_VIEWS)[number];
 
 export const DEAL_STAGES = [
-  { value: "open", label: "Open" },
-  { value: "qualified", label: "Qualified" },
-  { value: "proposal", label: "Proposal" },
-  { value: "negotiation", label: "Negotiation" },
+  { value: "open", label: "Researching" },
+  { value: "qualified", label: "Eligible" },
+  { value: "proposal", label: "Submitted" },
+  { value: "negotiation", label: "Shortlisted" },
   { value: "won", label: "Won" },
-  { value: "lost", label: "Lost" },
+  { value: "lost", label: "Didn't win" },
 ] as const;
 
 export const OPEN_DEAL_STAGES = ["open", "qualified", "proposal", "negotiation"] as const;
@@ -83,26 +83,10 @@ export const PARTNER_PROGRAM_STATUSES = [
 export const CAPITAL_RECEIPT_SOURCES = [
   { value: "deal", label: "Deal" },
   { value: "investor", label: "Investor" },
-  { value: "distributor", label: "Distributor" },
-  { value: "wine_club", label: "Wine club" },
-  { value: "tasting_room", label: "Tasting room" },
+  { value: "customer", label: "Customer payment" },
   { value: "partner", label: "Partner" },
+  { value: "grant", label: "Grant" },
   { value: "other", label: "Other" },
-] as const;
-
-export const WINE_DISTRIBUTION_MODELS = [
-  { value: "dtc", label: "Direct-to-consumer" },
-  { value: "wholesale", label: "Wholesale" },
-  { value: "wine_club", label: "Wine club" },
-  { value: "hybrid", label: "Hybrid" },
-  { value: "restaurant_only", label: "Restaurant only" },
-] as const;
-
-export const TASTING_ROOM_STATUSES = [
-  { value: "open_daily", label: "Open daily" },
-  { value: "weekends_only", label: "Weekends only" },
-  { value: "by_appointment", label: "By appointment" },
-  { value: "closed", label: "Closed to public" },
 ] as const;
 
 export const CALENDAR_PROVIDERS = [
@@ -126,13 +110,32 @@ export const CALENDAR_LINK_STATUSES = [
 
 export const INTERNAL_GRAFT_DOMAINS = ["graft.systems", "graftsystems.com"] as const;
 
-export const NOTABLE_VARIETALS = [
-  "Cabernet Sauvignon",
-  "Pinot Noir",
-  "Chardonnay",
-  "Syrah",
-  "Sauvignon Blanc",
-  "Zinfandel",
-  "Merlot",
-  "Rosé",
+export const WISPR_INGEST_STATUSES = [
+  { value: "pending", label: "Awaiting review" },
+  { value: "applied", label: "Applied" },
+  { value: "discarded", label: "Discarded" },
 ] as const;
+
+export const WISPR_PROVIDERS = [
+  { value: "wispr_api", label: "Wispr Voice API" },
+  { value: "demo", label: "Demo Wispr" },
+] as const;
+
+export const EMAIL_DIGEST_KINDS = [
+  { value: "daily_digest", label: "Daily digest" },
+  { value: "test_digest", label: "Test digest" },
+] as const;
+
+export const EMAIL_DIGEST_STATUSES = [
+  { value: "queued", label: "Queued" },
+  { value: "sent", label: "Sent" },
+  { value: "skipped", label: "Skipped" },
+  { value: "outbox_only", label: "Outbox only" },
+  { value: "error", label: "Error" },
+] as const;
+
+export const EMAIL_PROVIDERS = [
+  { value: "resend", label: "Resend" },
+  { value: "outbox", label: "Outbox (no real send)" },
+] as const;
+

@@ -6,34 +6,24 @@ import {
   deleteCompanyAction,
   deleteContactAction,
   updateContactAction,
-} from "@/app/(dashboard)/actions";
-import { ActivityFeed } from "@/components/crm/activity-feed";
-import { ContactList } from "@/components/crm/contact-list";
-import { DealSection } from "@/components/crm/deal-section";
-import { InteractionSection } from "@/components/crm/interaction-section";
-import { InvestorPanel } from "@/components/crm/investor-panel";
-import { NeedsPanel } from "@/components/crm/needs-panel";
-import { PartnerPanel } from "@/components/crm/partner-panel";
-import { PilotSection } from "@/components/crm/pilot-section";
-import { WineryPanel } from "@/components/crm/winery-panel";
-import { TaskSection } from "@/components/crm/task-section";
+} from "@/server/actions/companies";
+import { CommentsSection } from "@/components/work/comments-section";
+import { ContactList } from "@/components/companies/contact-list";
+import { InteractionSection } from "@/components/work/interaction-section";
+import { InvestorPanel } from "@/components/investors/investor-panel";
+import { NeedsPanel } from "@/components/companies/needs-panel";
+import { TaskSection } from "@/components/work/task-section";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { getCompany, listWorkspaceUsers } from "@/lib/companies/queries";
 import { formatDate, parseTags } from "@/lib/crm";
 import {
   getCompanyInvestorProfile,
-  getCompanyPartnerProfile,
-  getCompanyWineryProfile,
   listCompanyDeals,
-  listCompanyPilots,
 } from "@/lib/pipeline/queries";
 import { requireSession } from "@/lib/session";
-import {
-  listCompanyActivity,
-  listCompanyInteractions,
-  listCompanyTasks,
-} from "@/lib/work/queries";
+import { listCompanyComments } from "@/lib/work/comments";
+import { listCompanyInteractions, listCompanyTasks } from "@/lib/work/queries";
 
 type CompanyDetailPageProps = {
   params: Promise<{ companyId: string }>;
@@ -47,23 +37,17 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
     users,
     interactions,
     tasks,
-    activity,
     deals,
-    pilots,
     investorProfile,
-    partnerProfile,
-    wineryProfile,
+    comments,
   ] = await Promise.all([
     getCompany(session.user.workspaceId, companyId),
     listWorkspaceUsers(session.user.workspaceId),
     listCompanyInteractions(companyId),
     listCompanyTasks(companyId),
-    listCompanyActivity(companyId),
     listCompanyDeals(companyId),
-    listCompanyPilots(companyId),
     getCompanyInvestorProfile(companyId),
-    getCompanyPartnerProfile(companyId),
-    getCompanyWineryProfile(companyId),
+    listCompanyComments(companyId),
   ]);
 
   if (!company) {
@@ -95,7 +79,13 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
             <p className="text-sm text-muted-foreground">{company.domain}</p>
           ) : null}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/companies/${company.id}/notes`}
+            className={buttonVariants({ variant: "default" })}
+          >
+            Open notes
+          </Link>
           <Link
             href={`/companies/${company.id}/edit`}
             className={buttonVariants({ variant: "outline" })}
@@ -127,17 +117,6 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
         </div>
       </section>
 
-      <WineryPanel companyId={company.id} profile={wineryProfile} />
-
-      <DealSection companyId={company.id} users={users} deals={deals} />
-
-      <PilotSection
-        companyId={company.id}
-        users={users}
-        deals={deals.map((deal) => ({ id: deal.id, name: deal.name }))}
-        pilots={pilots}
-      />
-
       <InvestorPanel
         companyId={company.id}
         profile={
@@ -150,8 +129,6 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
         }
       />
 
-      <PartnerPanel companyId={company.id} users={users} profile={partnerProfile} />
-
       <InteractionSection
         companyId={company.id}
         contacts={company.contacts}
@@ -163,11 +140,15 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
         contacts={company.contacts}
         users={users}
         deals={deals.map((deal) => ({ id: deal.id, name: deal.name }))}
-        pilots={pilots.map((pilot) => ({ id: pilot.id, name: pilot.name }))}
         tasks={tasks}
       />
 
-      <ActivityFeed events={activity} />
+      <CommentsSection
+        companyId={company.id}
+        currentUserId={session.user.id}
+        currentUserRole={session.user.role}
+        comments={comments}
+      />
 
       <ContactList
         companyId={company.id}

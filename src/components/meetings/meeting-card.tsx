@@ -4,7 +4,7 @@ import {
   confirmEventCompanyAction,
   logMeetingAction,
   skipEventAction,
-} from "@/app/(dashboard)/calendar-actions";
+} from "@/server/actions/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

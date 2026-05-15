@@ -1,5 +1,5 @@
-import { CompanyForm } from "@/components/crm/company-form";
-import { createCompanyAction } from "@/app/(dashboard)/actions";
+import { CompanyForm } from "@/components/companies/company-form";
+import { createCompanyAction } from "@/server/actions/companies";
 import {
   listKnownTags,
   listRelationshipStages,

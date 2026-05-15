@@ -35,11 +35,10 @@ export default async function RunwayPage() {
   return (
     <div className="space-y-10">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Runway</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">The forge</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Capital</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Log every dollar that hits the house, define how you want it carved up, and see a split pie for each
-          receipt. Rules are workspace-wide; receipts keep the story of where cash came from.
+          Log every dollar that hits the workspace, define how it&apos;s split, and see a pie for each receipt.
+          Rules are workspace-wide; receipts keep the story of where cash came from.
         </p>
       </div>
 

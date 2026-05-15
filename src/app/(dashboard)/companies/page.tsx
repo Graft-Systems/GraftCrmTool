@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { CompanyFilters } from "@/components/crm/company-filters";
-import { CompanyTable } from "@/components/crm/company-table";
+import { CompanyFilters } from "@/components/companies/company-filters";
+import { CompanyTable } from "@/components/companies/company-table";
 import { buttonVariants } from "@/components/ui/button";
 import {
   listCompanies,
@@ -43,10 +43,9 @@ export default async function CompaniesPage({ searchParams }: CompaniesPageProps
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">The Arena</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Contenders</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Companies</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Orgs you are tracking—stage, tags, owners, and who is in the fight.
+            Everyone you&apos;re tracking — stage, tags, owners, and last touch.
           </p>
         </div>
         <Link href="/companies/new" className={buttonVariants()}>

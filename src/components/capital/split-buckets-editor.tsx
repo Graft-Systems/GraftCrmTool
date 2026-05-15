@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import type { SplitBucket } from "@/lib/capital/parse";
 
-import { updateCapitalSplitBucketsAction } from "@/app/(dashboard)/capital-actions";
+import { updateCapitalSplitBucketsAction } from "@/server/actions/capital";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

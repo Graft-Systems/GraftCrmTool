@@ -1,7 +1,8 @@
 import Link from "next/link";
 
-import { InboxTaskTable } from "@/components/crm/inbox-task-table";
+import { InboxTaskTable } from "@/components/work/inbox-task-table";
 import { buttonVariants } from "@/components/ui/button";
+import { listWorkspaceUsers } from "@/lib/companies/queries";
 import { INBOX_VIEWS, type InboxView } from "@/lib/constants";
 import { getInboxCounts, listInboxTasks } from "@/lib/work/queries";
 import { requireSession } from "@/lib/session";
@@ -31,9 +32,10 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
   const session = await requireSession();
   const params = await searchParams;
   const view = parseView(params.view);
-  const [tasks, counts] = await Promise.all([
+  const [tasks, counts, teammates] = await Promise.all([
     listInboxTasks(session.user.workspaceId, view, session.user.id),
     getInboxCounts(session.user.workspaceId, session.user.id),
+    listWorkspaceUsers(session.user.workspaceId),
   ]);
 
   const countByView: Record<InboxView, number> = {
@@ -67,7 +69,14 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
         ))}
       </div>
 
-      <InboxTaskTable tasks={tasks} />
+      <InboxTaskTable
+        tasks={tasks}
+        teammates={teammates.map((user) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        }))}
+      />
     </div>
   );
 }

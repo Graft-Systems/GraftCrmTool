@@ -117,23 +117,6 @@ export async function listCompanyInteractions(companyId: string) {
   });
 }
 
-export async function listCompanyActivity(companyId: string) {
-  return prisma.activityEvent.findMany({
-    where: { companyId },
-    include: {
-      actor: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
-}
-
 export async function getInboxCounts(workspaceId: string, currentUserId: string) {
   const base = openTaskWhere(workspaceId);
   const now = new Date();

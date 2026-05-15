@@ -1,6 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 
-import { ACTIVE_PILOT_STATUSES, OPEN_DEAL_STAGES } from "@/lib/constants";
+import { OPEN_DEAL_STAGES } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { parseTags } from "@/lib/crm";
 
@@ -72,9 +72,6 @@ export async function listCompanies(
           },
           deals: {
             where: { stage: { in: [...OPEN_DEAL_STAGES] } },
-          },
-          pilots: {
-            where: { status: { in: [...ACTIVE_PILOT_STATUSES] } },
           },
         },
       },

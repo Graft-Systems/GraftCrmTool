@@ -1,17 +1,6 @@
-import Link from "next/link";
-import {
-  CalendarDays,
-  Grape,
-  Handshake,
-  Inbox,
-  Landmark,
-  PieChart,
-  Settings2,
-  Target,
-  Trophy,
-} from "lucide-react";
-
-import { Button, buttonVariants } from "@/components/ui/button";
+import { GraftLogo } from "@/components/brand/graft-logo";
+import { DashboardSidebarNav } from "@/components/dashboard/sidebar-nav";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 type DashboardSidebarProps = {
@@ -26,66 +15,25 @@ export function DashboardSidebar({
   signOutAction,
 }: DashboardSidebarProps) {
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r bg-background">
-      <div className="px-6 py-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Graft Systems
+    <aside className="flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[inset_-1px_0_0_rgba(255,255,255,0.06)]">
+      <div className="px-5 py-6">
+        <GraftLogo onDark />
+        <p className="mt-4 text-sm leading-snug text-sidebar-foreground/80">
+          People, conversations, and next steps.
         </p>
-        <h1 className="mt-2 text-xl font-semibold tracking-tight">Graft CRM</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Pipeline, arena, and the forge.</p>
       </div>
-      <Separator />
-      <nav className="flex flex-1 flex-col gap-1 px-4 py-4">
-        <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-          Command
-        </p>
-        <Link href="/deals" className={buttonVariants({ variant: "ghost", className: "justify-start" })}>
-          <Target className="size-4" />
-          Deals
-        </Link>
-        <Link href="/companies" className={buttonVariants({ variant: "ghost", className: "justify-start" })}>
-          <Trophy className="size-4" />
-          The Arena
-        </Link>
-        <Link href="/wineries" className={buttonVariants({ variant: "ghost", className: "justify-start" })}>
-          <Grape className="size-4" />
-          Wineries
-        </Link>
-        <Link href="/investors" className={buttonVariants({ variant: "ghost", className: "justify-start" })}>
-          <Landmark className="size-4" />
-          Investors
-        </Link>
-        <Link href="/runway" className={buttonVariants({ variant: "ghost", className: "justify-start" })}>
-          <PieChart className="size-4" />
-          The Forge
-        </Link>
-
-        <Separator className="my-3" />
-        <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-          Signal desk
-        </p>
-        <Link href="/inbox" className={buttonVariants({ variant: "ghost", className: "justify-start" })}>
-          <Inbox className="size-4" />
-          Inbox
-        </Link>
-        <Link href="/meetings" className={buttonVariants({ variant: "ghost", className: "justify-start" })}>
-          <CalendarDays className="size-4" />
-          Meetings
-        </Link>
-        <Link href="/partners" className={buttonVariants({ variant: "ghost", className: "justify-start" })}>
-          <Handshake className="size-4" />
-          Partners
-        </Link>
-        <Link href="/settings" className={buttonVariants({ variant: "ghost", className: "justify-start" })}>
-          <Settings2 className="size-4" />
-          Settings
-        </Link>
-      </nav>
-      <div className="border-t px-4 py-4">
-        <p className="text-sm font-medium">{userName}</p>
-        <p className="text-xs text-muted-foreground">{userEmail}</p>
+      <Separator className="bg-sidebar-border" />
+      <DashboardSidebarNav />
+      <div className="border-t border-sidebar-border px-4 py-4">
+        <p className="text-sm font-semibold text-sidebar-foreground">{userName}</p>
+        <p className="mt-0.5 text-xs text-sidebar-foreground/75">{userEmail}</p>
         <form action={signOutAction} className="mt-3">
-          <Button type="submit" variant="outline" size="sm" className="w-full">
+          <Button
+            type="submit"
+            variant="outline"
+            size="sm"
+            className="w-full border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
             Sign out
           </Button>
         </form>

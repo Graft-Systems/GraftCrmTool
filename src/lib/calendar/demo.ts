@@ -11,12 +11,12 @@ function hoursFromNow(hours: number) {
 }
 
 export async function seedDemoEvents({ workspaceId, userId, calendarAccountId }: DemoSeedContext) {
-  const stonefield = await prisma.company.findFirst({
-    where: { workspaceId, name: "Stonefield Vineyards" },
-    select: { id: true, contacts: { take: 1, where: { isPrimary: true } } },
-  });
   const acme = await prisma.company.findFirst({
     where: { workspaceId, name: "Acme Robotics" },
+    select: { id: true, contacts: { where: { isPrimary: true }, take: 1 } },
+  });
+  const northwind = await prisma.company.findFirst({
+    where: { workspaceId, name: "Northwind Logistics" },
     select: { id: true, contacts: { where: { isPrimary: true }, take: 1 } },
   });
 
@@ -41,16 +41,16 @@ export async function seedDemoEvents({ workspaceId, userId, calendarAccountId }:
 
   const events: DemoEvent[] = [
     {
-      externalId: "demo-stonefield-tasting",
-      title: "Stonefield tasting + grafting trial review",
+      externalId: "demo-northwind-intro",
+      title: "Northwind intro — routing demo",
       startsAt: at(3),
       endsAt: at(4),
       attendees: [
-        { email: "elena@stonefieldvineyards.example", name: "Elena Marchetti" },
+        { email: "elena@northwind.example", name: "Elena Marchetti" },
         { email: "owner@graft.systems", name: "Graft Owner", isOrganizer: true },
       ],
-      location: "Stonefield Vineyards tasting room",
-      description: "Walk the trial block, taste barrel samples, lock in next graft kit shipment.",
+      meetingUrl: "https://meet.example/north-wind-intro",
+      description: "Walk through routing demo, talk through exception handling.",
     },
     {
       externalId: "demo-acme-pilot-checkin",
@@ -66,15 +66,15 @@ export async function seedDemoEvents({ workspaceId, userId, calendarAccountId }:
       description: "Week-two metrics review and security follow-ups.",
     },
     {
-      externalId: "demo-unmatched-cabernet-club",
-      title: "Intro: Cabernet Club distributor",
+      externalId: "demo-unmatched-vendor-intro",
+      title: "Intro: prospective vendor partner",
       startsAt: hoursFromNow(72),
       endsAt: hoursFromNow(73),
       attendees: [
-        { email: "buyer@cabernetclub.example", name: "Priya Rao" },
+        { email: "buyer@vendor.example", name: "Priya Rao" },
         { email: "teammate@graft.systems", name: "Graft Teammate", isOrganizer: true },
       ],
-      description: "Cold intro from conference - explore wine-club distribution fit.",
+      description: "Cold intro from the conference — explore distribution fit.",
     },
   ];
 
@@ -116,5 +116,5 @@ export async function seedDemoEvents({ workspaceId, userId, calendarAccountId }:
     });
   }
 
-  return { stonefieldId: stonefield?.id ?? null, acmeId: acme?.id ?? null, userId };
+  return { acmeId: acme?.id ?? null, northwindId: northwind?.id ?? null, userId };
 }

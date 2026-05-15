@@ -1,4 +1,4 @@
-import { DealTable } from "@/components/crm/deal-table";
+import { DealTable } from "@/components/competitions/deal-table";
 import { DEAL_STAGES } from "@/lib/constants";
 import { listWorkspaceUsers } from "@/lib/companies/queries";
 import { listDeals } from "@/lib/pipeline/queries";
@@ -11,6 +11,10 @@ type DealsPageProps = {
     ownerId?: string;
     openOnly?: string;
   }>;
+};
+
+export const metadata = {
+  title: "Competitions",
 };
 
 const selectClassName = cn(
@@ -35,9 +39,9 @@ export default async function DealsPage({ searchParams }: DealsPageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Deals</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Competitions</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Open opportunities across the team workspace.
+          Pitch competitions, accelerators, grants, and challenges this team is in the running for.
         </p>
       </div>
 
@@ -47,7 +51,7 @@ export default async function DealsPage({ searchParams }: DealsPageProps) {
             Stage
           </label>
           <select id="stage" name="stage" defaultValue={filters.stage ?? ""} className={selectClassName}>
-            <option value="">Open deals</option>
+            <option value="">Active</option>
             {DEAL_STAGES.map((stage) => (
               <option key={stage.value} value={stage.value}>
                 {stage.label}

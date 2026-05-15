@@ -1,158 +1,271 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, Mic, Square } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type VoiceRecorderProps = {
-  onTranscriptChange: (value: string) => void;
+  onTranscript: (newText: string) => void;
+  className?: string;
+  hint?: string;
 };
 
-type SpeechRecognitionAlternative = {
-  transcript: string;
-};
+type RecorderState = "idle" | "recording" | "transcribing" | "error";
 
-type SpeechRecognitionResultLike = {
-  isFinal: boolean;
-  0: SpeechRecognitionAlternative;
-};
-
-type SpeechRecognitionEventLike = {
-  resultIndex: number;
-  results: ArrayLike<SpeechRecognitionResultLike>;
-};
-
-type SpeechRecognitionLike = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-
-function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const browserWindow = window as Window & {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  };
-
-  return browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition ?? null;
+function formatElapsed(ms: number) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-export function VoiceRecorder({ onTranscriptChange }: VoiceRecorderProps) {
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const transcriptRef = useRef("");
+function pickMimeType() {
+  if (typeof MediaRecorder === "undefined") return undefined;
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/mp4",
+  ];
+  return candidates.find((type) => MediaRecorder.isTypeSupported(type));
+}
+
+export function VoiceRecorder({ onTranscript, className, hint }: VoiceRecorderProps) {
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const startedAtRef = useRef<number | null>(null);
+
   const [supported, setSupported] = useState(false);
-  const [listening, setListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
+  const [state, setState] = useState<RecorderState>("idle");
+  const [elapsed, setElapsed] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [lastTranscript, setLastTranscript] = useState<string>("");
+  const [lastModel, setLastModel] = useState<string>("");
+  const [lastLatencyMs, setLastLatencyMs] = useState<number | null>(null);
+  const [lastDurationMs, setLastDurationMs] = useState<number | null>(null);
 
   useEffect(() => {
-    setSupported(Boolean(getSpeechRecognitionConstructor()));
+    setSupported(
+      typeof window !== "undefined" &&
+        Boolean(navigator.mediaDevices?.getUserMedia) &&
+        typeof MediaRecorder !== "undefined",
+    );
   }, []);
 
   useEffect(() => {
-    onTranscriptChange(transcript);
-  }, [onTranscriptChange, transcript]);
-
-  const statusLabel = useMemo(() => {
-    if (!supported) {
-      return "Voice capture is not supported in this browser. Use paste instead.";
-    }
-
-    return listening ? "Listening… speak naturally and pause when finished." : "Ready to capture.";
-  }, [listening, supported]);
-
-  function startListening() {
-    const Recognition = getSpeechRecognitionConstructor();
-    if (!Recognition) {
-      return;
-    }
-
-    const recognition = new Recognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    recognition.onresult = (event) => {
-      let next = transcriptRef.current;
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const result = event.results[index];
-        if (!result?.isFinal) {
-          continue;
-        }
-
-        const spoken = result[0]?.transcript?.trim();
-        if (spoken) {
-          next = next ? `${next} ${spoken}` : spoken;
-        }
+    if (state !== "recording") return;
+    const interval = window.setInterval(() => {
+      if (startedAtRef.current !== null) {
+        setElapsed(Date.now() - startedAtRef.current);
       }
+    }, 250);
+    return () => window.clearInterval(interval);
+  }, [state]);
 
-      transcriptRef.current = next.trim();
-      setTranscript(transcriptRef.current);
+  useEffect(() => {
+    return () => {
+      stopTracks();
     };
-    recognition.onerror = () => {
-      setListening(false);
-    };
-    recognition.onend = () => {
-      setListening(false);
-    };
+  }, []);
 
-    recognitionRef.current = recognition;
-    recognition.start();
-    setListening(true);
+  function stopTracks() {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
   }
 
-  function stopListening() {
-    recognitionRef.current?.stop();
-    recognitionRef.current = null;
-    setListening(false);
+  async function transcribeBlob(blob: Blob, mimeType: string | undefined) {
+    const form = new FormData();
+    const extension = mimeType?.includes("mp4") ? "mp4" : mimeType?.includes("ogg") ? "ogg" : "webm";
+    form.append("audio", blob, `recording.${extension}`);
+
+    const start = performance.now();
+    const response = await fetch("/api/transcribe", {
+      method: "POST",
+      body: form,
+    });
+    const latencyMs = Math.round(performance.now() - start);
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(data?.error ?? `Transcription failed (${response.status}).`);
+    }
+
+    const data = (await response.json()) as { transcript?: string; model?: string };
+    return {
+      transcript: data.transcript?.trim() ?? "",
+      model: data.model ?? "",
+      latencyMs,
+    };
+  }
+
+  async function handleStart() {
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const mimeType = pickMimeType();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      recorderRef.current = recorder;
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        const collectedMime = recorder.mimeType || mimeType;
+        const blob = new Blob(chunksRef.current, { type: collectedMime || "audio/webm" });
+        const audioDurationMs = startedAtRef.current ? Date.now() - startedAtRef.current : null;
+        chunksRef.current = [];
+        stopTracks();
+
+        if (blob.size === 0) {
+          setState("idle");
+          return;
+        }
+
+        setState("transcribing");
+        try {
+          const { transcript, model, latencyMs } = await transcribeBlob(blob, collectedMime);
+          if (transcript) {
+            setLastTranscript(transcript);
+            setLastModel(model);
+            setLastLatencyMs(latencyMs);
+            setLastDurationMs(audioDurationMs);
+            onTranscript(transcript);
+          }
+          setState("idle");
+        } catch (transcribeError) {
+          setError(
+            transcribeError instanceof Error
+              ? transcribeError.message
+              : "Could not transcribe that recording.",
+          );
+          setState("error");
+        }
+      };
+
+      startedAtRef.current = Date.now();
+      setElapsed(0);
+      setState("recording");
+      recorder.start();
+    } catch (startError) {
+      stopTracks();
+      setError(
+        startError instanceof Error
+          ? startError.message
+          : "Could not access the microphone.",
+      );
+      setState("error");
+    }
+  }
+
+  function handleStop() {
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+    }
+  }
+
+  function handleReset() {
+    setLastTranscript("");
+    setLastModel("");
+    setLastLatencyMs(null);
+    setLastDurationMs(null);
+    setError(null);
+    setState("idle");
+  }
+
+  if (!supported) {
+    return (
+      <div className={cn("rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground", className)}>
+        Voice capture needs a microphone and a modern browser. Use paste instead, or try Chrome/Edge.
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">{statusLabel}</p>
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" onClick={startListening} disabled={!supported || listening}>
-          Start recording
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={stopListening}
-          disabled={!supported || !listening}
-        >
-          Stop
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            transcriptRef.current = "";
-            setTranscript("");
-          }}
-          disabled={!transcript}
-        >
-          Clear
-        </Button>
+    <div className={cn("space-y-3 rounded-lg border bg-muted/20 p-4", className)}>
+      <div className="flex flex-wrap items-center gap-3">
+        {state === "recording" ? (
+          <Button type="button" onClick={handleStop} variant="destructive" size="sm">
+            <Square className="size-4" />
+            Stop
+          </Button>
+        ) : state === "transcribing" ? (
+          <Button type="button" size="sm" disabled>
+            <Loader2 className="size-4 animate-spin" />
+            Transcribing
+          </Button>
+        ) : (
+          <Button type="button" onClick={handleStart} size="sm">
+            <Mic className="size-4" />
+            {lastTranscript ? "Record another" : "Start recording"}
+          </Button>
+        )}
+
+        {state === "recording" ? (
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <span className="relative flex size-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+              <span className="relative inline-flex size-2.5 rounded-full bg-red-500" />
+            </span>
+            Recording {formatElapsed(elapsed)}
+          </div>
+        ) : null}
+
+        {state === "transcribing" ? (
+          <p className="text-sm text-muted-foreground">Sending to Groq Whisper…</p>
+        ) : null}
+
+        {lastTranscript && state === "idle" ? (
+          <Button type="button" onClick={handleReset} variant="ghost" size="sm">
+            Dismiss
+          </Button>
+        ) : null}
       </div>
-      <textarea
-        value={transcript}
-        onChange={(event) => {
-          transcriptRef.current = event.target.value;
-          setTranscript(event.target.value);
-        }}
-        rows={8}
-        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-        placeholder="Transcript appears here. You can edit it before structuring."
-      />
+
+      {lastTranscript && state === "idle" ? (
+        <div className="rounded-md border bg-background p-3 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Last transcript
+            </p>
+            <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+              {lastModel ? (
+                <span className="rounded-full border bg-muted/60 px-2 py-0.5 font-mono">
+                  Groq · {lastModel}
+                </span>
+              ) : null}
+              {lastDurationMs !== null ? (
+                <span className="rounded-full border bg-muted/40 px-2 py-0.5">
+                  Audio {formatElapsed(lastDurationMs)}
+                </span>
+              ) : null}
+              {lastLatencyMs !== null ? (
+                <span className="rounded-full border bg-muted/40 px-2 py-0.5">
+                  STT {lastLatencyMs}ms
+                </span>
+              ) : null}
+            </div>
+          </div>
+          <p className="mt-2 whitespace-pre-wrap">{lastTranscript}</p>
+        </div>
+      ) : null}
+
+      {state === "error" && error ? (
+        <p className="text-sm text-destructive">{error}</p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          {hint ?? "Audio is sent to Groq Whisper Large v3 Turbo. Recordings are not stored."}
+        </p>
+      )}
     </div>
   );
 }

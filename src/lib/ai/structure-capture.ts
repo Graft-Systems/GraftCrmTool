@@ -2,6 +2,7 @@ import { INTERACTION_TYPES } from "@/lib/constants";
 
 import { structureCaptureWithGroq } from "@/lib/ai/groq";
 import type { CaptureCompanyContext, CaptureSource, StructuredCapture } from "@/lib/ai/types";
+import { isGroqConfigured } from "@/lib/env";
 
 const interactionTypeValues = new Set<string>(INTERACTION_TYPES.map((item) => item.value));
 
@@ -10,7 +11,10 @@ function normalizeInteractionType(value: string, source: CaptureSource) {
     return value;
   }
 
-  return source === "in_app_voice" ? "voice_note" : "meeting";
+  if (source === "in_app_voice" || source === "wispr_api") {
+    return "voice_note";
+  }
+  return "meeting";
 }
 
 function firstSentences(text: string, maxSentences = 2) {
@@ -59,7 +63,8 @@ function heuristicStructureCapture(
     });
   }
 
-  let interactionType: string = source === "in_app_voice" ? "voice_note" : "meeting";
+  let interactionType: string =
+    source === "in_app_voice" || source === "wispr_api" ? "voice_note" : "meeting";
   if (/\bemail\b/.test(lower)) {
     interactionType = "email";
   } else if (/\bcall\b/.test(lower)) {
@@ -130,7 +135,7 @@ export async function structureCapture(
     throw new Error("Add a transcript or pasted notes before structuring.");
   }
 
-  if (process.env.GROQ_API_KEY?.trim()) {
+  if (isGroqConfigured()) {
     try {
       const structured = await structureCaptureWithGroq(trimmed, {
         companyName: context.companyName,

@@ -1,32 +1,91 @@
-import { updateStageLabelAction } from "@/app/(dashboard)/actions";
+import { updateStageLabelAction } from "@/server/actions/companies";
 import {
   connectDemoCalendarAction,
   disconnectCalendarAction,
   refreshDemoCalendarAction,
-} from "@/app/(dashboard)/calendar-actions";
+} from "@/server/actions/calendar";
+import {
+  deleteDigestAction,
+  runDailyDigestNowAction,
+  sendTestDigestAction,
+} from "@/server/actions/notifications";
+import {
+  connectDemoWisprAction,
+  disconnectWisprAction,
+} from "@/server/actions/wispr";
+import Link from "next/link";
+
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listCalendarAccountsForUser } from "@/lib/calendar/queries";
 import { listKnownTags, listRelationshipStages } from "@/lib/companies/queries";
 import { CALENDAR_PROVIDERS } from "@/lib/constants";
+import { formatDateTime } from "@/lib/crm";
+import { getEmailProviderInfo } from "@/lib/email/provider";
+import { listRecentDigests } from "@/lib/email/queries";
+import {
+  getGoogleRedirectUri,
+  isCronSecretConfigured,
+  isGoogleCalendarConfigured,
+  isWisprWebhookConfigured,
+} from "@/lib/env";
 import { requireSession } from "@/lib/session";
+import { getWisprConnectionForUser } from "@/lib/wispr/queries";
+
+function digestStatusVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
+  if (status === "sent") return "default";
+  if (status === "outbox_only") return "secondary";
+  if (status === "error") return "destructive";
+  return "outline";
+}
+
+function digestStatusLabel(status: string): string {
+  switch (status) {
+    case "sent":
+      return "Sent";
+    case "outbox_only":
+      return "Outbox only";
+    case "queued":
+      return "Queued";
+    case "error":
+      return "Error";
+    case "skipped":
+      return "Skipped";
+    default:
+      return status;
+  }
+}
 
 function providerLabel(provider: string) {
   return CALENDAR_PROVIDERS.find((entry) => entry.value === provider)?.label ?? provider;
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    calendar?: string;
+    err?: string;
+    detail?: string;
+    reason?: string;
+  }>;
+}) {
   const session = await requireSession();
-  const [stages, tags, calendarAccounts] = await Promise.all([
+  const cal = await searchParams;
+  const [stages, tags, calendarAccounts, wisprConnection, recentDigests] = await Promise.all([
     listRelationshipStages(session.user.workspaceId),
     listKnownTags(session.user.workspaceId),
     listCalendarAccountsForUser(session.user.id),
+    getWisprConnectionForUser(session.user.id),
+    listRecentDigests(session.user.workspaceId, 10),
   ]);
 
-  const googleConfigured = Boolean(
-    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
-  );
+  const emailInfo = getEmailProviderInfo();
+  const cronSecretConfigured = isCronSecretConfigured();
+  const wisprApiConfigured = isWisprWebhookConfigured();
+  const wisprConnected = wisprConnection?.status === "connected";
+  const googleConfigured = isGoogleCalendarConfigured();
   const activeAccounts = calendarAccounts.filter((account) => account.status !== "disconnected");
 
   return (
@@ -37,6 +96,175 @@ export default async function SettingsPage() {
           Workspace defaults and personal integrations.
         </p>
       </div>
+
+      {cal.calendar === "google_ok" ? (
+        <p className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-900 dark:bg-green-950 dark:text-green-100">
+          Google Calendar connected. You can schedule invites from the Meetings page.
+        </p>
+      ) : null}
+      {cal.calendar === "google_denied" ? (
+        <p className="rounded-lg border px-4 py-3 text-sm text-muted-foreground">
+          Google sign-in was cancelled. Try again when you&apos;re ready.
+        </p>
+      ) : null}
+      {cal.calendar === "google_oauth" ? (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Google OAuth error{cal.err ? ` (${cal.err})` : ""}.{cal.detail ? ` ${cal.detail}` : ""}{" "}
+          In Google Cloud Console, enable{" "}
+          <strong className="font-medium">Google Calendar API</strong>, add scope{" "}
+          <code className="rounded bg-muted px-1 text-foreground">calendar.events</code>,{" "}
+          <code className="rounded bg-muted px-1 text-foreground">userinfo.email</code>,{" "}
+          <code className="rounded bg-muted px-1 text-foreground">userinfo.profile</code>,{" "}
+          <code className="rounded bg-muted px-1 text-foreground">openid</code>, on the{" "}
+          <strong className="font-medium">OAuth consent screen → Scopes</strong>, add yourself as a{" "}
+          <strong className="font-medium">Test user</strong> if the app is in Testing, then try again.
+        </p>
+      ) : null}
+      {cal.calendar === "google_state" ? (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {cal.reason === "session"
+            ? "Google returned OK, but the CRM lost your login session — sign out and sign in again, then connect Google Calendar in one browser tab."
+            : cal.reason === "state"
+              ? "Google callback did not match this session — try connecting again without extra tabs."
+              : "Google callback was incomplete — disconnect and try Connect Google Calendar again."}
+        </p>
+      ) : null}
+      {cal.calendar === "google_error" || cal.calendar === "google_config" ? (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Could not connect Google Calendar. Check{" "}
+          <code className="rounded bg-muted px-1">GOOGLE_CLIENT_ID</code> /{" "}
+          <code className="rounded bg-muted px-1">GOOGLE_CLIENT_SECRET</code>, redirect URI (must match OAuth
+          client exactly), that <strong className="font-medium">OAuth consent scopes</strong> include calendar +{" "}
+          userinfo/email, and credentials are for the{" "}
+          <strong className="font-medium">same Google Cloud project</strong>.
+          {cal.detail ? (
+            <>
+              {" "}
+              <span className="block mt-2 text-xs opacity-95">
+                Detail: <code className="break-all">{cal.detail}</code>
+              </span>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+
+      <section className="space-y-4 rounded-xl border bg-background p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Email reminders</h2>
+            <p className="text-sm text-muted-foreground">
+              Daily digests of overdue, due-today, and due-this-week follow-ups for each owner, plus
+              meetings on today&apos;s calendar. Every send is recorded in the outbox below.
+            </p>
+          </div>
+          <Badge variant={emailInfo.provider === "resend" ? "default" : "secondary"}>
+            {emailInfo.provider === "resend" ? "Resend connected" : "Outbox only"}
+          </Badge>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-2 rounded-lg border p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Provider</p>
+              <Badge variant={emailInfo.configured ? "default" : "outline"}>
+                {emailInfo.configured ? "Configured" : "Not configured"}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {emailInfo.configured
+                ? `Sending real email through Resend as ${emailInfo.from}.`
+                : (emailInfo.reason ?? "No email provider is configured yet.")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Until Resend is configured, digests are still rendered and stored in the outbox so you
+              can preview what will go out.
+            </p>
+          </div>
+          <div className="space-y-2 rounded-lg border p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Cron endpoint</p>
+              <Badge variant={cronSecretConfigured ? "default" : "outline"}>
+                {cronSecretConfigured ? "Secret set" : "Open in dev"}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Schedule a daily POST to <code className="rounded bg-muted px-1">/api/cron/reminders</code>{" "}
+              (Vercel Cron, GitHub Actions, etc.).
+              {cronSecretConfigured ? (
+                <>
+                  {" "}Pass <code className="rounded bg-muted px-1">Authorization: Bearer $CRON_SECRET</code>{" "}
+                  or <code className="rounded bg-muted px-1">?token=$CRON_SECRET</code>.
+                </>
+              ) : (
+                <>
+                  {" "}Set <code className="rounded bg-muted px-1">CRON_SECRET</code> in production to lock this
+                  endpoint down.
+                </>
+              )}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <form action={sendTestDigestAction}>
+                <Button type="submit" size="sm">
+                  Send me a test digest
+                </Button>
+              </form>
+              <form action={runDailyDigestNowAction}>
+                <Button type="submit" size="sm" variant="outline">
+                  Run today&apos;s digest now
+                </Button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Recent digests</p>
+          {recentDigests.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No digests yet. Send a test digest to see one appear here.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {recentDigests.map((digest) => (
+                <div
+                  key={digest.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{digest.subject}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateTime(digest.sentAt ?? digest.createdAt)} ·{" "}
+                      {digest.recipient.name ?? digest.recipientEmail} ·{" "}
+                      {digest.taskCount} task{digest.taskCount === 1 ? "" : "s"}
+                      {digest.meetingCount
+                        ? ` · ${digest.meetingCount} meeting${digest.meetingCount === 1 ? "" : "s"}`
+                        : ""}
+                    </p>
+                    {digest.error ? (
+                      <p className="mt-1 text-xs text-destructive">{digest.error}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={digestStatusVariant(digest.status)}>
+                      {digestStatusLabel(digest.status)}
+                    </Badge>
+                    <form action={deleteDigestAction.bind(null, digest.id)}>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Clear
+                      </Button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       <section className="space-y-4 rounded-xl border bg-background p-6">
         <div>
@@ -56,11 +284,28 @@ export default async function SettingsPage() {
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Sign in with your Google account to import meetings, attendees, and meeting links.
+              Connect once with OAuth. Then schedule meetings from <strong>Meetings</strong> and invite teammates —
+              Google emails them a calendar invitation so it appears on their calendar (when their workspace email
+              matches their Google account).
             </p>
-            <Button type="button" variant="outline" size="sm" disabled>
-              {googleConfigured ? "Connect Google (coming soon)" : "Add credentials to enable"}
-            </Button>
+            <p className="text-xs text-muted-foreground">
+              Authorized redirect URI in Google Cloud Console:{" "}
+              <code className="break-all rounded bg-muted px-1">
+                {getGoogleRedirectUri()}
+              </code>
+            </p>
+            {googleConfigured ? (
+              <Link
+                href="/api/calendar/google/start"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                Connect Google Calendar
+              </Link>
+            ) : (
+              <Button type="button" variant="outline" size="sm" disabled>
+                Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable
+              </Button>
+            )}
           </div>
           <div className="space-y-2 rounded-lg border p-4">
             <div className="flex items-center justify-between">
@@ -68,7 +313,7 @@ export default async function SettingsPage() {
               <Badge variant="secondary">Ready</Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Loads sample meetings (Stonefield, Acme, an unmatched distributor) so the workflow is testable now.
+              Loads a few sample meetings (one matched company, one unmatched) so the workflow is testable now.
             </p>
             <form action={connectDemoCalendarAction}>
               <Button type="submit" size="sm">
@@ -118,6 +363,63 @@ export default async function SettingsPage() {
             </div>
           </div>
         ) : null}
+      </section>
+
+      <section className="space-y-4 rounded-xl border bg-background p-6">
+        <div>
+          <h2 className="text-lg font-semibold">Wispr Flow integration</h2>
+          <p className="text-sm text-muted-foreground">
+            Wispr dictation lands in the {""}
+            <a href="/wispr" className="underline">
+              Wispr inbox
+            </a>
+            {""} as draft interactions and runs through the same AI review pipeline as in-app voice and paste.
+            Real API access is partner-gated; demo mode lets you exercise the full flow today.
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-2 rounded-lg border p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Wispr Voice API</p>
+              <Badge variant={wisprApiConfigured ? "secondary" : "outline"}>
+                {wisprApiConfigured ? "Webhook ready" : "Not configured"}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Once Wispr partner access is approved, set <code className="rounded bg-muted px-1">WISPR_WEBHOOK_SECRET</code>{" "}
+              and point Wispr to <code className="rounded bg-muted px-1">/api/webhooks/wispr</code>. Signed payloads
+              are converted to ingests automatically.
+            </p>
+            <Button type="button" variant="outline" size="sm" disabled>
+              {wisprApiConfigured ? "Connect Wispr (coming soon)" : "Awaiting partner credentials"}
+            </Button>
+          </div>
+          <div className="space-y-2 rounded-lg border p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Demo Wispr</p>
+              <Badge variant={wisprConnected ? "secondary" : "outline"}>
+                {wisprConnected ? "Connected" : "Ready"}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Seeds a couple of sample voice notes so the review and apply pipeline is exercisable now.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <form action={connectDemoWisprAction}>
+                <Button type="submit" size="sm">
+                  {wisprConnected ? "Refresh demo notes" : "Connect demo Wispr"}
+                </Button>
+              </form>
+              {wisprConnected ? (
+                <form action={disconnectWisprAction}>
+                  <Button type="submit" variant="outline" size="sm">
+                    Disconnect
+                  </Button>
+                </form>
+              ) : null}
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="space-y-4 rounded-xl border bg-background p-6">

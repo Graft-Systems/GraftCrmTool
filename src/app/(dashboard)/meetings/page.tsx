@@ -1,9 +1,12 @@
 import Link from "next/link";
 
-import { connectDemoCalendarAction } from "@/app/(dashboard)/calendar-actions";
+import { connectDemoCalendarAction } from "@/server/actions/calendar";
+import { GoogleScheduleMeetingForm } from "@/components/meetings/google-schedule-meeting-form";
+import { ManualMeetingForm } from "@/components/meetings/manual-meeting-form";
 import { MeetingCard } from "@/components/meetings/meeting-card";
 import { Button } from "@/components/ui/button";
 import { listWorkspaceCompaniesForSelect } from "@/lib/calendar/companies";
+import { listWorkspaceUsers } from "@/lib/companies/queries";
 import { listCalendarAccountsForUser, listMeetingsForUser } from "@/lib/calendar/queries";
 import { requireSession } from "@/lib/session";
 
@@ -40,23 +43,29 @@ export default async function MeetingsPage({ searchParams }: MeetingsPageProps) 
   const filters = await searchParams;
   const scope = filters.scope === "all" ? "all" : "mine";
 
-  const [accounts, companies, events] = await Promise.all([
+  const [accounts, companies, events, teammates] = await Promise.all([
     listCalendarAccountsForUser(session.user.id),
     listWorkspaceCompaniesForSelect(session.user.workspaceId),
     listMeetingsForUser(session.user.workspaceId, session.user.id, {
       mineOnly: scope === "mine",
     }),
+    listWorkspaceUsers(session.user.workspaceId),
   ]);
 
   const activeAccount = accounts.find((account) => account.status === "connected");
+  const googleConnected = accounts.some(
+    (account) =>
+      account.provider === "google" &&
+      account.status === "connected" &&
+      Boolean(account.refreshToken),
+  );
   const { past, today, week, later } = bucketEvents(events);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Signal desk</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Meetings</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Meetings</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             Calendar events synced to the CRM. Confirm the company link and log the meeting in one click.
           </p>
@@ -81,19 +90,30 @@ export default async function MeetingsPage({ searchParams }: MeetingsPageProps) 
         <section className="rounded-xl border border-dashed bg-background p-6">
           <h2 className="text-lg font-semibold">Connect a calendar</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Hook in your calendar to surface meetings here. Google OAuth requires a Cloud project (configure
+            Google OAuth requires a Cloud project (configure
             <code className="mx-1 rounded bg-muted px-1">GOOGLE_CLIENT_ID</code>and
             <code className="mx-1 rounded bg-muted px-1">GOOGLE_CLIENT_SECRET</code>). Until then, use the demo
-            calendar — it seeds realistic upcoming meetings with Stonefield, Acme, and an unmatched distributor.
+            calendar to test the flow with seeded events, or add meetings manually below.
           </p>
           <form action={connectDemoCalendarAction} className="mt-3">
             <Button type="submit">Connect demo calendar</Button>
           </form>
           <p className="mt-2 text-xs text-muted-foreground">
-            You can also manage calendar accounts in <Link href="/settings" className="underline">Settings</Link>.
+            Manage calendar accounts in <Link href="/settings" className="underline">Settings</Link>.
           </p>
         </section>
       ) : null}
+
+      <GoogleScheduleMeetingForm
+        currentUserId={session.user.id}
+        teammates={teammates}
+        companies={companies.map((company) => ({ id: company.id, name: company.name }))}
+        googleConnected={googleConnected}
+      />
+
+      <ManualMeetingForm
+        companies={companies.map((company) => ({ id: company.id, name: company.name }))}
+      />
 
       {events.length === 0 && activeAccount ? (
         <div className="rounded-xl border border-dashed bg-background px-6 py-12 text-center">

@@ -1,4 +1,5 @@
-import type { StructuredCapture } from "@/lib/ai/types";
+import type { CaptureSource, StructuredCapture } from "@/lib/ai/types";
+import { env } from "@/lib/env";
 
 type GroqResponse = {
   choices?: Array<{
@@ -28,15 +29,15 @@ export async function structureCaptureWithGroq(
     needs: string | null;
     tags: string[];
     stageKeys: string[];
-    source: "in_app_voice" | "paste";
+    source: CaptureSource;
   },
 ): Promise<StructuredCapture> {
-  const apiKey = process.env.GROQ_API_KEY?.trim();
+  const apiKey = env.groq.apiKey;
   if (!apiKey) {
     throw new Error("GROQ_API_KEY is not configured.");
   }
 
-  const model = process.env.GROQ_MODEL?.trim() || "llama-3.1-8b-instant";
+  const model = env.groq.model;
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {

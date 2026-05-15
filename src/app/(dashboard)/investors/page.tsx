@@ -1,4 +1,4 @@
-import { InvestorTable } from "@/components/crm/investor-table";
+import { InvestorTable } from "@/components/investors/investor-table";
 import { INVESTOR_STAGES } from "@/lib/constants";
 import { listInvestors } from "@/lib/pipeline/queries";
 import { requireSession } from "@/lib/session";

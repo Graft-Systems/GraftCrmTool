@@ -2,6 +2,7 @@ import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { signIn } from "@/lib/auth";
+import { GraftLogo } from "@/components/brand/graft-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,13 +30,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const showInvalidError = params.error === "invalid";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 px-6">
-      <div className="w-full max-w-md rounded-2xl border bg-background p-8 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Graft Systems
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Sign in to Graft CRM</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-10%,color-mix(in_srgb,var(--graft-mauve)_35%,transparent),transparent_55%),radial-gradient(ellipse_90%_60%_at_-10%_110%,color-mix(in_srgb,var(--graft-navy)_28%,transparent),transparent_50%)]"
+      />
+      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-md">
+        <GraftLogo />
+        <h1 className="mt-6 text-2xl font-semibold tracking-tight text-foreground">
+          Sign in to Graft CRM
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           Use a seeded teammate email for local development.
         </p>
         {showInvalidError ? (
@@ -60,7 +65,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             Continue
           </Button>
         </form>
-        <p className="mt-4 text-xs text-muted-foreground">
+        <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
           Seeded users: owner@graft.systems and teammate@graft.systems
         </p>
       </div>

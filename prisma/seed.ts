@@ -3,9 +3,10 @@ import "dotenv/config";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 import { DEFAULT_RELATIONSHIP_STAGES } from "../src/lib/constants";
+import { env } from "../src/lib/env";
 import { PrismaClient } from "../src/generated/prisma/client";
 
-const databaseUrl = process.env.DATABASE_URL ?? "file:./dev.db";
+const databaseUrl = env.databaseUrl;
 const prisma = new PrismaClient({
   adapter: new PrismaBetterSqlite3({ url: databaseUrl }),
 });
@@ -31,6 +32,8 @@ async function main() {
       ],
     },
   });
+
+  await prisma.company.deleteMany({ where: { id: "seed-company-stonefield" } });
 
   for (const stage of DEFAULT_RELATIONSHIP_STAGES) {
     await prisma.relationshipStage.upsert({
@@ -77,6 +80,19 @@ async function main() {
     create: {
       email: "teammate@graft.systems",
       name: "Graft Teammate",
+      workspaceId: workspace.id,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: "arnavsai410@gmail.com" },
+    update: {
+      name: "Arnav",
+      workspaceId: workspace.id,
+    },
+    create: {
+      email: "arnavsai410@gmail.com",
+      name: "Arnav",
       workspaceId: workspace.id,
     },
   });
@@ -337,30 +353,30 @@ async function main() {
     },
   });
 
-  const wineryCompany = await prisma.company.upsert({
-    where: { id: "seed-company-stonefield" },
+  const secondCompany = await prisma.company.upsert({
+    where: { id: "seed-company-northwind" },
     update: {
-      name: "Stonefield Vineyards",
-      website: "https://stonefieldvineyards.example",
-      domain: "stonefieldvineyards.example",
-      description: "Sonoma Coast estate evaluating Graft rootstock trials.",
+      name: "Northwind Logistics",
+      website: "https://northwind.example",
+      domain: "northwind.example",
+      description: "Regional logistics partner exploring our routing platform.",
       relationshipStageId: exploringStage?.id,
-      tags: ["winery", "sonoma-coast", "warm-intro"],
+      tags: ["logistics", "warm-intro"],
       needs:
-        "Tight vintage logistics across DTC, club, and a small wholesale book. Wants better visibility on grafting trial results.",
+        "Wants better visibility into delivery exceptions and a clearer ROI story before committing to a paid pilot.",
       accountOwnerId: owner.id,
     },
     create: {
-      id: "seed-company-stonefield",
+      id: "seed-company-northwind",
       workspaceId: workspace.id,
-      name: "Stonefield Vineyards",
-      website: "https://stonefieldvineyards.example",
-      domain: "stonefieldvineyards.example",
-      description: "Sonoma Coast estate evaluating Graft rootstock trials.",
+      name: "Northwind Logistics",
+      website: "https://northwind.example",
+      domain: "northwind.example",
+      description: "Regional logistics partner exploring our routing platform.",
       relationshipStageId: exploringStage?.id,
-      tags: ["winery", "sonoma-coast", "warm-intro"],
+      tags: ["logistics", "warm-intro"],
       needs:
-        "Tight vintage logistics across DTC, club, and a small wholesale book. Wants better visibility on grafting trial results.",
+        "Wants better visibility into delivery exceptions and a clearer ROI story before committing to a paid pilot.",
       accountOwnerId: owner.id,
     },
   });
@@ -368,74 +384,45 @@ async function main() {
   await prisma.contact.upsert({
     where: { id: "seed-contact-elena" },
     update: {
-      companyId: wineryCompany.id,
+      companyId: secondCompany.id,
       name: "Elena Marchetti",
-      email: "elena@stonefieldvineyards.example",
-      title: "Head winemaker",
+      email: "elena@northwind.example",
+      title: "VP Operations",
       contactRole: "champion",
       isPrimary: true,
-      notes: "Decision maker on varietal trials; prefers in-person tastings.",
+      notes: "Decision maker on the pilot; prefers concise weekly updates.",
     },
     create: {
       id: "seed-contact-elena",
-      companyId: wineryCompany.id,
+      companyId: secondCompany.id,
       name: "Elena Marchetti",
-      email: "elena@stonefieldvineyards.example",
-      title: "Head winemaker",
+      email: "elena@northwind.example",
+      title: "VP Operations",
       contactRole: "champion",
       isPrimary: true,
-      notes: "Decision maker on varietal trials; prefers in-person tastings.",
-    },
-  });
-
-  await prisma.wineryProfile.upsert({
-    where: { companyId: wineryCompany.id },
-    update: {
-      region: "Sonoma Coast",
-      varietals: ["Pinot Noir", "Chardonnay", "Syrah"],
-      annualProductionCases: 8200,
-      distributionModel: "hybrid",
-      tastingRoomStatus: "by_appointment",
-      winemakerName: "Elena Marchetti",
-      established: 2014,
-      websiteShop: "https://shop.stonefieldvineyards.example",
-      nextStep: "Send 200ct rootstock kit for the spring grafting trial.",
-      notes: "Strong club retention; exploring a small allocation expansion.",
-    },
-    create: {
-      companyId: wineryCompany.id,
-      region: "Sonoma Coast",
-      varietals: ["Pinot Noir", "Chardonnay", "Syrah"],
-      annualProductionCases: 8200,
-      distributionModel: "hybrid",
-      tastingRoomStatus: "by_appointment",
-      winemakerName: "Elena Marchetti",
-      established: 2014,
-      websiteShop: "https://shop.stonefieldvineyards.example",
-      nextStep: "Send 200ct rootstock kit for the spring grafting trial.",
-      notes: "Strong club retention; exploring a small allocation expansion.",
+      notes: "Decision maker on the pilot; prefers concise weekly updates.",
     },
   });
 
   await prisma.capitalReceipt.upsert({
-    where: { id: "seed-capital-receipt-stonefield-club" },
+    where: { id: "seed-capital-receipt-northwind-pilot" },
     update: {
       workspaceId: workspace.id,
       amount: 4200,
-      title: "Stonefield wine club allocation",
-      source: "wine_club",
+      title: "Northwind pilot — first invoice",
+      source: "customer",
       receivedAt: new Date("2026-05-08T12:00:00.000Z"),
-      notes: "Spring release club payment.",
+      notes: "Initial pilot kickoff invoice.",
       createdById: owner.id,
     },
     create: {
-      id: "seed-capital-receipt-stonefield-club",
+      id: "seed-capital-receipt-northwind-pilot",
       workspaceId: workspace.id,
       amount: 4200,
-      title: "Stonefield wine club allocation",
-      source: "wine_club",
+      title: "Northwind pilot — first invoice",
+      source: "customer",
       receivedAt: new Date("2026-05-08T12:00:00.000Z"),
-      notes: "Spring release club payment.",
+      notes: "Initial pilot kickoff invoice.",
       createdById: owner.id,
     },
   });
@@ -463,58 +450,20 @@ async function main() {
     },
   });
 
-  await prisma.activityEvent.createMany({
-    data: [
-      {
-        companyId: sampleCompany.id,
-        actorId: owner.id,
-        kind: "interaction_logged",
-        summary: "Logged call interaction.",
-      },
-      {
-        companyId: sampleCompany.id,
-        actorId: owner.id,
-        kind: "task_created",
-        summary: "Created follow-up task: Send pilot recap to Sarah",
-      },
-      {
-        companyId: sampleCompany.id,
-        actorId: owner.id,
-        kind: "task_created",
-        summary: "Created follow-up task: Confirm IT security review path",
-      },
-      {
-        companyId: sampleCompany.id,
-        actorId: owner.id,
-        kind: "deal_created",
-        summary: "Created deal: Platform rollout",
-      },
-      {
-        companyId: sampleCompany.id,
-        actorId: owner.id,
-        kind: "pilot_created",
-        summary: "Created pilot: Field notes pilot",
-      },
-      {
-        companyId: wineryCompany.id,
-        actorId: owner.id,
-        kind: "winery_updated",
-        summary: "Added winery profile (Sonoma Coast)",
-      },
-      {
-        companyId: sampleCompany.id,
-        actorId: owner.id,
-        kind: "investor_updated",
-        summary: "Updated investor profile (diligence)",
-      },
-      {
-        companyId: sampleCompany.id,
-        actorId: owner.id,
-        kind: "partner_updated",
-        summary: "Updated partner profile (exploring)",
-      },
-    ],
+  const existingComment = await prisma.comment.findFirst({
+    where: { companyId: sampleCompany.id, authorId: owner.id },
   });
+  if (!existingComment) {
+    await prisma.comment.create({
+      data: {
+        workspaceId: workspace.id,
+        companyId: sampleCompany.id,
+        authorId: owner.id,
+        body:
+          "Heads up: their procurement lead is out next week. Re-engage after the 22nd and lead with the pilot ROI slide.",
+      },
+    });
+  }
 }
 
 main()

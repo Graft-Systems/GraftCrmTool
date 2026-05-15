@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Deal" ADD COLUMN "endsAt" DATETIME;
+ALTER TABLE "Deal" ADD COLUMN "link" TEXT;
+ALTER TABLE "Deal" ADD COLUMN "startsAt" DATETIME;

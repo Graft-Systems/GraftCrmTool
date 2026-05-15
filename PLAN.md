@@ -367,7 +367,8 @@ Keep v1 schemas **flat and usable** (not a full Salesforce clone). Link all four
 - [`src/app/(dashboard)/`](/Users/arnavchittiprolu/GraftCrmTool/src/app/(dashboard)/) — inbox, companies, contacts, deals, pilots, meetings
 - [`src/app/api/webhooks/`](/Users/arnavchittiprolu/GraftCrmTool/src/app/api/webhooks/) — Wispr (when enabled)
 - [`src/app/api/cron/`](/Users/arnavchittiprolu/GraftCrmTool/src/app/api/cron/) — reminders, calendar sync
-- [`src/components/crm/`](/Users/arnavchittiprolu/GraftCrmTool/src/components/crm/) — tables, forms, timeline, entity panels
+- [`src/components/`](/Users/arnavchittiprolu/GraftCrmTool/src/components/) — UI by domain (`companies/`, `competitions/`, `work/`, `capture/`, `meetings/`, etc.)
+- [`src/server/actions/`](/Users/arnavchittiprolu/GraftCrmTool/src/server/actions/) — server mutations (companies, calendar, work, …)
 - [`src/components/voice/`](/Users/arnavchittiprolu/GraftCrmTool/src/components/voice/) — recorder, transcript review
 - [`src/components/meetings/`](/Users/arnavchittiprolu/GraftCrmTool/src/components/meetings/) — calendar list, link confirm
 - [`src/components/integrations/`](/Users/arnavchittiprolu/GraftCrmTool/src/components/integrations/) — connect cards, status
@@ -419,6 +420,6 @@ Keep v1 schemas **flat and usable** (not a full Salesforce clone). Link all four
 - [ ] Phase 3: Deals, pilots, investors, partners on company records
 - [ ] Phase 4: In-app voice/paste, shared AI review-and-apply pipeline
 - [x] Phase 5: Google Calendar sync (demo mode + scaffolding), meetings UI, attendee linking
-- [ ] Phase 6: Wispr API adapter (feature-flagged), ingest + review
-- [ ] Phase 7: Email reminders, reassignment, comments, meeting digests
+- [x] Phase 6: Wispr API adapter (demo mode + signed webhook scaffold), ingest + review
+- [x] Phase 7: Daily digest cron + Resend/outbox, task reassignment in inbox + activity log, company comments
 - [ ] Phase 8: Allowlist, export, webhook logs, limits, smoke tests, launch runbook

@@ -36,11 +36,6 @@ export type PartnerListFilters = {
   ownerId?: string;
 };
 
-export type WineryListFilters = {
-  region?: string;
-  distributionModel?: string;
-};
-
 export async function listCompanyDeals(companyId: string) {
   return prisma.deal.findMany({
     where: { companyId },
@@ -71,45 +66,6 @@ export async function getCompanyPartnerProfile(companyId: string) {
     where: { companyId },
     include: { owner: { select: ownerSelect } },
   });
-}
-
-export async function getCompanyWineryProfile(companyId: string) {
-  const profile = await prisma.wineryProfile.findUnique({
-    where: { companyId },
-  });
-
-  if (!profile) {
-    return null;
-  }
-
-  return { ...profile, varietals: parseTags(profile.varietals) };
-}
-
-export async function listWineries(workspaceId: string, filters: WineryListFilters = {}) {
-  const where: Prisma.WineryProfileWhereInput = {
-    company: { workspaceId },
-  };
-
-  if (filters.region) {
-    where.region = { contains: filters.region };
-  }
-
-  if (filters.distributionModel) {
-    where.distributionModel = filters.distributionModel;
-  }
-
-  const profiles = await prisma.wineryProfile.findMany({
-    where,
-    include: {
-      company: { select: companySelect },
-    },
-    orderBy: [{ region: "asc" }, { updatedAt: "desc" }],
-  });
-
-  return profiles.map((profile) => ({
-    ...profile,
-    varietals: parseTags(profile.varietals),
-  }));
 }
 
 export async function listDeals(workspaceId: string, filters: DealListFilters = {}) {
