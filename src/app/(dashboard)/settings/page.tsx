@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listCalendarAccountsForUser } from "@/lib/calendar/queries";
-import { listKnownTags, listRelationshipStages } from "@/lib/companies/queries";
+import { listKnownTags, listRelationshipStages, listWorkspaceUsers } from "@/lib/companies/queries";
 import { CALENDAR_PROVIDERS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/crm";
 import { getEmailProviderInfo } from "@/lib/email/provider";
@@ -73,9 +73,10 @@ export default async function SettingsPage({
 }) {
   const session = await requireSession();
   const cal = await searchParams;
-  const [stages, tags, calendarAccounts, wisprConnection, recentDigests] = await Promise.all([
+  const [stages, tags, workspaceUsers, calendarAccounts, wisprConnection, recentDigests] = await Promise.all([
     listRelationshipStages(session.user.workspaceId),
     listKnownTags(session.user.workspaceId),
+    listWorkspaceUsers(session.user.workspaceId),
     listCalendarAccountsForUser(session.user.id),
     getWisprConnectionForUser(session.user.id),
     listRecentDigests(session.user.workspaceId, 10),
@@ -95,6 +96,36 @@ export default async function SettingsPage({
         <p className="mt-1 text-sm text-muted-foreground">
           Workspace defaults and personal integrations.
         </p>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <p className="text-sm font-medium">Sign-in &amp; team</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Workspace accounts use email and password. Successful sign-ins update &quot;Last sign-in&quot;.
+          Users without a password on file choose one on first login.
+        </p>
+        <ul className="mt-4 divide-y divide-border rounded-lg border">
+          {workspaceUsers.map((member) => (
+            <li
+              key={member.id}
+              className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-2.5 text-sm"
+            >
+              <div>
+                <span className="font-medium text-foreground">{member.name ?? member.email}</span>
+                {member.name ? (
+                  <span className="ml-2 text-muted-foreground">{member.email}</span>
+                ) : null}
+                <span className="ml-2 rounded-md bg-muted px-1.5 py-0.5 text-xs capitalize text-muted-foreground">
+                  {member.role}
+                </span>
+              </div>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                Last sign-in:{" "}
+                {member.lastSignInAt ? formatDateTime(member.lastSignInAt) : "— (not yet)"}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {cal.calendar === "google_ok" ? (

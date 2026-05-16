@@ -1,0 +1,31 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Sign-in is controlled by workspace User rows in Postgres (see Settings → Sign-in & team).
+
+databases:
+  - name: graft-postgres
+    databaseName: graft_crm
+    user: graft
+    region: oregon
+
+services:
+  - type: web
+    name: graft-crm
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: graft-postgres
+          property: connectionString
+      - key: AUTH_SECRET
+        sync: false
+      - key: AUTH_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false

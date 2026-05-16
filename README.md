@@ -2,23 +2,32 @@
 
 Company-first CRM for **Graft Systems**: companies, follow-ups, meetings, competitions, investors, capital runway, voice capture (Wispr), and email digests.
 
-Built with **Next.js** (App Router), **React 19**, **Prisma** (SQLite), and **NextAuth** (credentials).
+Built with **Next.js** (App Router), **React 19**, **Prisma** (**PostgreSQL**), and **NextAuth** (credentials).
 
 ## Prerequisites
 
-- **Node.js** 20+ recommended  
-- **npm** (or compatible package manager)
+- **Node.js** 20+
+- **Docker** (recommended for local Postgres) — or any PostgreSQL 16+ instance
+- **npm**
 
-## Quick start
+## Quick start (local)
 
 ```bash
 git clone <repository-url>
 cd graft-crm-tool
 npm install
+docker compose up -d
 cp .env.example .env
 ```
 
-Edit `.env` with at least the **Core** variables (see below), then:
+Edit `.env`: set `AUTH_SECRET`, `AUTH_URL`, and optional integrations. Anyone who has a **`User`** row in Postgres can sign in (no separate email allowlist env var).  
+If `DATABASE_URL` is omitted, it defaults to:
+
+`postgresql://graft:graft@localhost:5432/graft_crm`
+
+(match `docker-compose.yml`).
+
+Then:
 
 ```bash
 npm run db:migrate
@@ -26,44 +35,55 @@ npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). You’ll be redirected to sign in.
+Open [http://localhost:3000](http://localhost:3000).
 
 ### Sign-in (after seed)
 
-Auth is **email-only** (no password): you must use an address listed in `ALLOWED_EMAILS` **and** present as a `User` row after seeding. Seeded examples:
+Auth uses **email and password** (minimum length in code — see `src/lib/auth/password.ts`). Open sign-up creates a workspace member unless **`AUTH_INVITE_ONLY=true`**. **Everyone picks their own password** the first time they sign in (including seeded emails — no shared demo password).
 
-- `owner@graft.systems`
+Seeded workspace accounts (see `SEED_WORKSPACE_USERS` in [`src/lib/constants.ts`](src/lib/constants.ts)):
+
+- `owner@graft.systems` (admin)
 - `teammate@graft.systems`
+- `arnavsai410@gmail.com`
 
-Those emails must be included in `ALLOWED_EMAILS` in `.env`. If sign-in fails on a fresh DB, run `npm run db:seed` again and confirm your email appears in both places.
+Add teammates via **open sign-up** on `/login` (name + email + password), or extend **`SEED_WORKSPACE_USERS`** and **`npm run db:seed`**, or insert **`User`** rows. **Settings → Sign-in & team** lists workspace users and last sign-in.
+
+If login fails, confirm **`npm run db:migrate`** has been applied and Postgres is reachable; for seeded emails, use **first sign-in** to create your password (or check **`AUTH_INVITE_ONLY`** if sign-up is disabled).
+
+---
+
+## Hosting (production)
+
+Deploy on **Render** using the included **`render.yaml`** blueprint (Postgres + Web Service). Full steps: **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
+
+- **`AUTH_URL`** must be your public HTTPS URL (needed for NextAuth and Google Calendar OAuth).
+- **`CRON_SECRET`** + an external scheduler hit **`POST /api/cron/reminders`** for daily digests (see DEPLOYMENT.md).
 
 ---
 
 ## Environment variables
 
-Copy `.env.example` → `.env`. **Single source of truth** for parsing is [`src/lib/env.ts`](src/lib/env.ts); prefer adding keys there and in `.env.example`, not scattered `process.env` reads.
+Copy `.env.example` → `.env`. Parsing lives in [`src/lib/env.ts`](src/lib/env.ts).
 
-### Core (required for local app)
+### Core
 
 | Variable | Purpose |
 |----------|---------|
-| `DATABASE_URL` | SQLite file URL, e.g. `file:./dev.db` |
-| `AUTH_SECRET` | NextAuth secret — generate: `openssl rand -base64 32` |
+| `DATABASE_URL` | PostgreSQL URL (local default above if unset) |
+| `AUTH_SECRET` | NextAuth — `openssl rand -base64 32` |
 | `AUTH_URL` | App origin, e.g. `http://localhost:3000` (no trailing slash) |
-| `ALLOWED_EMAILS` | Comma-separated emails allowed to sign in with credentials |
 
-### Optional integrations
+### Optional
 
 | Variable | Purpose |
 |----------|---------|
-| `GROQ_API_KEY` | AI structuring + in-app transcription |
-| `GROQ_MODEL` / `GROQ_WHISPER_MODEL` | Groq chat / Whisper model IDs |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google Calendar OAuth (meetings, invites) |
-| `GOOGLE_REDIRECT_URI` | Defaults to `{AUTH_URL}/api/calendar/google/callback` |
-| `RESEND_API_KEY` / `EMAIL_FROM` | Send digest emails via [Resend](https://resend.com) |
-| `EMAIL_DIGEST_OUTBOUND_TO` | Force all digests to one inbox (useful in Resend test mode) |
-| `CRON_SECRET` | Protects `POST /api/cron/reminders` in production |
-| `WISPR_WEBHOOK_SECRET` | Validates Wispr webhook payloads |
+| `PG_POOL_MAX` | Cap `pg` pool size (default 5 prod / 10 dev) |
+| `GROQ_*` | AI + transcription |
+| `GOOGLE_*` | Calendar OAuth |
+| `RESEND_*`, `EMAIL_DIGEST_OUTBOUND_TO` | Email digests |
+| `CRON_SECRET` | Secures `/api/cron/reminders` |
+| `WISPR_WEBHOOK_SECRET` | Wispr webhook |
 
 ---
 
@@ -71,45 +91,39 @@ Copy `.env.example` → `.env`. **Single source of truth** for parsing is [`src/
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Next.js dev server |
-| `npm run build` | `prisma generate` + production build |
-| `npm run start` | Run production server |
+| `npm run dev` | Dev server |
+| `npm run build` | `prisma generate` + `next build` |
+| `npm run vercel-build` | `generate` + **`migrate deploy`** + `next build` (Vercel-style) |
+| `npm run start` | Production server (run **`db:deploy`** first if DB is new) |
+| `npm run db:migrate` | Create/apply migrations in dev |
+| `npm run db:deploy` | Apply migrations (`prisma migrate deploy`) |
+| `npm run db:seed` | Seed sample workspace |
 | `npm run lint` | ESLint |
-| `npm run db:generate` | Regenerate Prisma client |
-| `npm run db:migrate` | Apply migrations (`prisma migrate dev`) |
-| `npm run db:seed` | Seed workspace, users, sample data |
 
 ---
 
 ## Email digests
 
-Digests summarize **your** open follow-ups (overdue / due today / due this week) and **meetings today** from a connected Google account.
+Digests list **your** open follow-ups (overdue / today / this week) and **meetings today** from Google Calendar when connected.
 
-- **Settings** in the app: send a **test digest**, **run today’s digest** for the workspace, and view **recent digests** (sent / error / outbox-only).
-- **Automation**: schedule an HTTP caller (e.g. GitHub Actions, or your host’s cron) to `POST` `/api/cron/reminders` with `Authorization: Bearer <CRON_SECRET>` or `?token=<CRON_SECRET>`. Without that, digests only run when you trigger them from Settings or hit the route manually.
+- **Settings**: test digest, run workspace digest, recent outbox.
+- **Automated daily**: external cron → `POST /api/cron/reminders` with `CRON_SECRET` (see DEPLOYMENT.md).
 
-If Resend is not configured, messages may be stored as **outbox-only** without delivery.
-
----
-
-## Production notes
-
-- **`CRON_SECRET`**: In production, set a strong secret; the cron route rejects unauthenticated calls when `NODE_ENV` is production and the secret is set.
-- **SQLite file DB**: Default `file:./dev.db` is fine on a single machine. Serverless / multi-instance hosts often need a **managed database** or a single persistent volume — plan migrations accordingly.
-- **`AUTH_URL`**: Must match your public URL so OAuth and callbacks work.
+Without Resend, sends may stay **outbox-only**.
 
 ---
 
-## Project layout (high level)
+## Layout
 
 | Path | Role |
 |------|------|
-| `src/app/` | App Router pages & API routes |
-| `src/components/` | UI components |
+| `src/app/` | Routes & API |
 | `src/server/actions/` | Server actions |
-| `src/lib/` | Auth, env, DB, domain helpers |
+| `src/lib/` | Env, DB, auth, domains |
 | `prisma/` | Schema, migrations, seed |
-| `public/brand/` | Logo assets |
+| `docker-compose.yml` | Local Postgres |
+| `render.yaml` | Render blueprint |
+| `DEPLOYMENT.md` | Production checklist |
 
 ---
 

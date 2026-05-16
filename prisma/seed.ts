@@ -1,15 +1,7 @@
 import "dotenv/config";
 
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-
-import { DEFAULT_RELATIONSHIP_STAGES } from "../src/lib/constants";
-import { env } from "../src/lib/env";
-import { PrismaClient } from "../src/generated/prisma/client";
-
-const databaseUrl = env.databaseUrl;
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({ url: databaseUrl }),
-});
+import { DEFAULT_RELATIONSHIP_STAGES, SEED_WORKSPACE_USERS } from "../src/lib/constants";
+import { prisma } from "../src/lib/db";
 
 async function main() {
   const workspace = await prisma.workspace.upsert({
@@ -56,45 +48,25 @@ async function main() {
     });
   }
 
-  const owner = await prisma.user.upsert({
-    where: { email: "owner@graft.systems" },
-    update: {
-      name: "Graft Owner",
-      workspaceId: workspace.id,
-      role: "admin",
-    },
-    create: {
-      email: "owner@graft.systems",
-      name: "Graft Owner",
-      workspaceId: workspace.id,
-      role: "admin",
-    },
-  });
+  for (const seedUser of SEED_WORKSPACE_USERS) {
+    await prisma.user.upsert({
+      where: { email: seedUser.email },
+      update: {
+        name: seedUser.name,
+        workspaceId: workspace.id,
+        role: seedUser.role,
+      },
+      create: {
+        email: seedUser.email,
+        name: seedUser.name,
+        workspaceId: workspace.id,
+        role: seedUser.role,
+      },
+    });
+  }
 
-  await prisma.user.upsert({
-    where: { email: "teammate@graft.systems" },
-    update: {
-      name: "Graft Teammate",
-      workspaceId: workspace.id,
-    },
-    create: {
-      email: "teammate@graft.systems",
-      name: "Graft Teammate",
-      workspaceId: workspace.id,
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: "arnavsai410@gmail.com" },
-    update: {
-      name: "Arnav",
-      workspaceId: workspace.id,
-    },
-    create: {
-      email: "arnavsai410@gmail.com",
-      name: "Arnav",
-      workspaceId: workspace.id,
-    },
+  const owner = await prisma.user.findUniqueOrThrow({
+    where: { email: SEED_WORKSPACE_USERS[0].email },
   });
 
   const exploringStage = await prisma.relationshipStage.findFirst({
@@ -175,7 +147,9 @@ async function main() {
   });
 
   const sarah = await prisma.contact.findUnique({ where: { id: "seed-contact-sarah" } });
-  const teammate = await prisma.user.findUnique({ where: { email: "teammate@graft.systems" } });
+  const teammate = await prisma.user.findUnique({
+    where: { email: SEED_WORKSPACE_USERS[1].email },
+  });
 
   await prisma.interaction.upsert({
     where: { id: "seed-interaction-acme-call" },
@@ -464,6 +438,10 @@ async function main() {
       },
     });
   }
+
+  console.info(
+    "[seed] Done. Each user chooses their own password on first sign-in (seeded rows start without a stored hash). Re-running seed does not change passwords already saved.",
+  );
 }
 
 main()

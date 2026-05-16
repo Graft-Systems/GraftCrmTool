@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: graft
+      POSTGRES_PASSWORD: graft
+      POSTGRES_DB: graft_crm
+    volumes:
+      - graft_pgdata:/var/lib/postgresql/data
+
+volumes:
+  graft_pgdata:

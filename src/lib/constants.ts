@@ -139,3 +139,13 @@ export const EMAIL_PROVIDERS = [
   { value: "outbox", label: "Outbox (no real send)" },
 ] as const;
 
+/**
+ * Workspace `User` rows created by `prisma/seed.ts`.
+ * Each person sets their own password on first login (`passwordHash` starts unset).
+ */
+export const SEED_WORKSPACE_USERS = [
+  { email: "owner@graft.systems", name: "Graft Owner", role: "admin" as const },
+  { email: "teammate@graft.systems", name: "Graft Teammate", role: "member" as const },
+  { email: "arnavsai410@gmail.com", name: "Arnav", role: "member" as const },
+] as const;
+

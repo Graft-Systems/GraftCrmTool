@@ -3,14 +3,11 @@ function trim(value: string | undefined): string | undefined {
   return next ? next : undefined;
 }
 
-function parseEmailList(raw: string | undefined): string[] | null {
-  const value = trim(raw);
-  if (!value) return null;
-  const emails = value
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-  return emails.length > 0 ? emails : null;
+const DEFAULT_LOCAL_DATABASE_URL = "postgresql://graft:graft@localhost:5432/graft_crm";
+
+function isDirectPostgresUrl(url: string): boolean {
+  const u = url.toLowerCase();
+  return u.startsWith("postgresql://") || u.startsWith("postgres://");
 }
 
 /**
@@ -30,7 +27,33 @@ export const env = {
   },
 
   get databaseUrl() {
-    return trim(process.env.DATABASE_URL) ?? "file:./dev.db";
+    const raw = trim(process.env.DATABASE_URL);
+    if (!raw) {
+      return DEFAULT_LOCAL_DATABASE_URL;
+    }
+
+    // Prisma uses the `pg` driver — SQLite `file:` URLs from older setups break at runtime
+    // (queries surface as PrismaClientKnownRequestError / ECONNREFUSED).
+    if (raw.startsWith("file:")) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(
+          'DATABASE_URL uses SQLite (`file:`); this app requires PostgreSQL. Set `DATABASE_URL` to a `postgresql://` URL — see README / DEPLOYMENT.md.',
+        );
+      }
+
+      console.warn(
+        `[graft-crm] DATABASE_URL is SQLite (\`${raw}\`); using local Postgres ${DEFAULT_LOCAL_DATABASE_URL}. Update .env or run: docker compose up -d`,
+      );
+      return DEFAULT_LOCAL_DATABASE_URL;
+    }
+
+    if (!isDirectPostgresUrl(raw)) {
+      throw new Error(
+        `DATABASE_URL must start with postgresql:// or postgres:// (got ${JSON.stringify(raw.slice(0, 24))}…).`,
+      );
+    }
+
+    return raw;
   },
 
   get auth() {
@@ -38,7 +61,8 @@ export const env = {
     return {
       secret: trim(process.env.AUTH_SECRET),
       url,
-      allowedEmails: parseEmailList(process.env.ALLOWED_EMAILS),
+      /** When true, only existing `User` rows can sign in (no auto-provisioning). */
+      inviteOnly: trim(process.env.AUTH_INVITE_ONLY) === "true",
     } as const;
   },
 
@@ -88,10 +112,6 @@ export function getAppBaseUrl() {
 
 export function getGoogleRedirectUri() {
   return env.google.redirectUri;
-}
-
-export function getAllowedEmailList() {
-  return env.auth.allowedEmails;
 }
 
 export function isGoogleCalendarConfigured() {

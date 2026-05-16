@@ -1,33 +1,37 @@
-import path from "node:path";
-
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
 import { PrismaClient } from "@/generated/prisma/client";
 import { env } from "@/lib/env";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  pgPool: Pool | undefined;
 };
 
-function resolveSqliteUrl(databaseUrl: string) {
-  if (!databaseUrl.startsWith("file:")) {
-    return databaseUrl;
+function getPool() {
+  const connectionString = env.databaseUrl;
+  if (!connectionString) {
+    throw new Error(
+      "DATABASE_URL is required (PostgreSQL). See README and docker-compose.yml for local setup.",
+    );
   }
 
-  const filePath = databaseUrl.slice("file:".length);
-  if (path.isAbsolute(filePath)) {
-    return databaseUrl;
+  if (!globalForPrisma.pgPool) {
+    globalForPrisma.pgPool = new Pool({
+      connectionString,
+      max: Number(process.env.PG_POOL_MAX ?? (env.isProduction ? 5 : 10)),
+    });
   }
 
-  return `file:${path.join(process.cwd(), filePath)}`;
+  return globalForPrisma.pgPool;
 }
 
 function createPrismaClient() {
-  const databaseUrl = resolveSqliteUrl(env.databaseUrl);
+  const pool = getPool();
+  const adapter = new PrismaPg(pool);
 
-  return new PrismaClient({
-    adapter: new PrismaBetterSqlite3({ url: databaseUrl }),
-  });
+  return new PrismaClient({ adapter });
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();

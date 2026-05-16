@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Workspace {
@@ -27,9 +27,11 @@ model User {
   id                  String          @id @default(cuid())
   name                String?
   email               String          @unique
+  passwordHash        String?
   emailVerified       DateTime?
   image               String?
   role                String          @default("member")
+  lastSignInAt        DateTime?
   workspaceId         String
   workspace           Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   ownedCompanies      Company[]         @relation("CompanyOwner")

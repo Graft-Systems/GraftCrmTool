@@ -158,7 +158,7 @@ You run the app on hardware or cloud VMs you control (e.g. Docker on a VPS, Kube
 | UI | Tailwind CSS + shadcn/ui | Open source |
 | ORM | Prisma | Open source |
 | Auth (app) | Auth.js email magic link | Open source; email via Resend/Brevo free tier |
-| Database | Neon Postgres **or** Supabase Postgres | Free tier |
+| Database | PostgreSQL (Docker locally; Neon / Render / Supabase in production — see README) | Free tiers |
 | File/audio | Supabase Storage free tier **or** transcript-only storage | Optional audio retention |
 | AI | Gemini or Groq free tier | Quotas; graceful degradation |
 | In-app transcription | Web Speech API; optional free-tier STT | Fallback when browser quality is poor |

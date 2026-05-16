@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Titillium_Web } from "next/font/google";
+
+import { AuthSessionProvider } from "@/components/providers/auth-session-provider";
+
 import "./globals.css";
 
 const titillium = Titillium_Web({
@@ -30,7 +33,7 @@ export default function RootLayout({
       className={`${titillium.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        {children}
+        <AuthSessionProvider>{children}</AuthSessionProvider>
       </body>
     </html>
   );
