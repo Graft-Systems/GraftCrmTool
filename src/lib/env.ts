@@ -12,7 +12,7 @@ function isDirectPostgresUrl(url: string): boolean {
 
 /**
  * Single source of truth for environment variables.
- * Add new keys here and in `.env.example` — avoid reading `process.env` elsewhere.
+ * Add new keys here and document them in README (optional keys are not listed in `.env.example`).
  *
  * Values are read lazily (getters) so they are not snapshotted when this module is
  * first evaluated in a non-server context during bundling — and middleware must not

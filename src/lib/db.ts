@@ -18,9 +18,15 @@ function getPool() {
   }
 
   if (!globalForPrisma.pgPool) {
+    const ssl =
+      process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === "false"
+        ? { rejectUnauthorized: false as const }
+        : undefined;
+
     globalForPrisma.pgPool = new Pool({
       connectionString,
       max: Number(process.env.PG_POOL_MAX ?? (env.isProduction ? 5 : 10)),
+      ...(ssl ? { ssl } : {}),
     });
   }
 

@@ -2,90 +2,122 @@
 
 Graft CRM expects **PostgreSQL** and a **Node** runtime. This repo includes **`render.yaml`** so you can provision **Render Postgres + a Web Service** in one blueprint.
 
+**Terminology**
+
+| Environment | Database | Purpose |
+|---------------|----------|---------|
+| **Production (Render)** | Render Postgres from **`render.yaml`** | Live app your customers/teammates use on the public URL. |
+| **Shared dev (optional)** | e.g. **Supabase** | One DB for the whole team while coding locally — see **[TEAM_DATABASE.md](./TEAM_DATABASE.md)**. Not the same as Render unless you intentionally point dev at prod (discouraged). |
+
 ---
 
-## Teammate checklist — what you should do on Render
+## Who does what
 
-Use this if someone else already pushed the app to GitHub and you are deploying or joining the live stack.
+### Repo owner (before / during deploy)
+
+- Push the branch Render will build (usually **`main`**).
+- Share **integration secrets** securely (1Password, etc.): Groq, Google OAuth, Resend, Wispr — variable names in **`README`** / [`src/lib/env.ts`](src/lib/env.ts). Never commit **`.env`** or paste secrets into GitHub issues.
+- Decide **`AUTH_INVITE_ONLY`** for launch (open sign-up vs invite-only).
+- After the teammate sends the **production URL**, add the Google **authorized redirect URI**:  
+  `https://<your-render-host>/api/calendar/google/callback`  
+  (must match **`AUTH_URL`**.)
+- Keep **your** laptop on **`AUTH_URL=http://localhost:3000`** and a **local or Supabase** **`DATABASE_URL`** — production env vars live only on Render.
+
+### Teammate running Render
+
+Blueprint, Postgres, **`AUTH_SECRET`** / **`AUTH_URL`** / **`CRON_SECRET`**, paste shared integration keys, deploy, seed if agreed, configure cron.
+
+---
+
+## Teammate checklist — Render
+
+Use this when someone else already pushed the app to GitHub and you own the live stack.
 
 ### Before you touch Render
 
-- [ ] **Repo access** — clone rights (or deploy via org repo) on GitHub/GitLab.
-- [ ] **Render access** — invited to the Render **team** or **workspace** that owns the service (or use your own Render account for a trial deploy).
-- [ ] **Secrets ready** — generate locally (do not commit these):
-  - `AUTH_SECRET`: `openssl rand -base64 32`
-  - `CRON_SECRET`: `openssl rand -hex 32`
+- [ ] **Repo access** — clone/deploy rights on GitHub/GitLab.
+- [ ] **Render access** — team/workspace with permission to create services.
+- [ ] **Secrets ready** — generate (do not commit):
+  - **`AUTH_SECRET`**: `openssl rand -base64 32`
+  - **`CRON_SECRET`**: `openssl rand -hex 32`
+- [ ] **Integration keys** — received securely from the repo owner (Groq, Google, Resend, etc.); paste into Render **after** deploy setup.
 
-### Deploy (first time or new environment)
+### First deploy
 
-1. [ ] **New → Blueprint** in Render; connect the repo and branch (usually `main`).
-2. [ ] Confirm Resources from **`render.yaml`**: **`graft-postgres`** + **`graft-crm`** web service.
-3. [ ] When prompted for **sync secrets**, paste **`AUTH_SECRET`**, **`AUTH_URL`**, and **`CRON_SECRET`**:
-   - **`AUTH_URL`** = the **public** HTTPS URL Render will assign (e.g. `https://graft-crm.onrender.com`), **no trailing slash**. If you add a custom domain later, update **`AUTH_URL`** to match.
-4. [ ] Wait for the **first deploy** to finish (build + migrate + start).
-5. [ ] **Smoke test** — open the service URL; login page should load. **`DATABASE_URL`** is auto-injected from Postgres — you should not set it manually on the web service.
+1. [ ] Render → **New → Blueprint** → repo + branch (**`main`**).
+2. [ ] Confirm **`render.yaml`** resources: **`graft-postgres`** + **`graft-crm`** web service.
+3. [ ] When prompted for **`sync: false`** vars, set **`AUTH_SECRET`**, **`AUTH_URL`**, **`CRON_SECRET`**:
+   - **`AUTH_URL`** = public HTTPS URL (e.g. `https://graft-crm.onrender.com`), **no trailing slash**; update if you add a custom domain.
+4. [ ] Wait for build + migrate + start to finish.
+5. [ ] Smoke test: open the URL; **`/login`** should load. **`DATABASE_URL`** is **auto-injected** from Render Postgres — do not paste a duplicate unless you know you need an override.
 
 ### After first deploy
 
-6. [ ] **Seed the database** (once per fresh Postgres) — see [§4 Seed production data](#4-seed-production-data-first-time). Without seed, you may have no workspace/demo data; users can still **sign up with email + password + full name** unless **`AUTH_INVITE_ONLY=true`** (then only existing **`User`** rows can sign in).
-7. [ ] **Cron** — configure something to **POST** `/api/cron/reminders` with header `Authorization: Bearer <CRON_SECRET>` on your schedule — see [§5 Daily digest cron](#5-daily-digest-cron).
-8. [ ] **Optional integrations** — if the team uses Calendar AI or email digests, add keys from **`.env.example`** in **Web Service → Environment** and redeploy.
+6. [ ] **Seed** (once per fresh production DB) — [§4 Seed production data](#4-seed-production-data-first-time).
+7. [ ] **Cron** — `POST /api/cron/reminders` with `Authorization: Bearer <CRON_SECRET>` — [§5 Daily digest cron](#5-daily-digest-cron).
+8. [ ] **Optional env** — Calendar, AI, email, Wispr — names in **`README`** → Web Service → Environment → **Save** → redeploy.
 
 ### If something breaks
 
-- Build failures: check **Deploy logs** for Prisma / `npm ci` errors.
-- Login failures: confirm **`AUTH_URL`** matches the URL users open (scheme + host, no trailing slash); confirm **`AUTH_SECRET`** is set and did not change mid-session without clearing cookies.
-- Migrations: **`startCommand`** runs `prisma migrate deploy`; if migrate fails, fix migration state before redeploying.
+| Symptom | What to check |
+|---------|----------------|
+| Build fails | Deploy logs: `npm ci`, Prisma generate, `next build`. |
+| Login / session weird | **`AUTH_URL`** matches the browser URL (HTTPS, no trailing **`/`**). **`AUTH_SECRET`** set; rotating it logs everyone out. |
+| Migrate fails on start | Logs around `prisma migrate deploy`; fix migration/DB state before redeploying. |
+| Email digests never send | **`RESEND_API_KEY`**, **`EMAIL_FROM`**; domain verified in Resend for production. |
 
-Details for each step are below.
+More detail: [§8 Troubleshooting](#8-troubleshooting) (includes **local/Supabase** dev).
 
 ---
 
 ## Before you start
 
-- Push the repo to **GitHub** or **GitLab** (Render pulls from git).
-- Have a **[Render](https://render.com)** account.
-- Optional: pick a **region** in `render.yaml` (`oregon` today); change `region` / `plan` if your team prefers another region or tier.
+- Repo on **GitHub** or **GitLab**.
+- **[Render](https://render.com)** account.
+- Optional: edit **`render.yaml`** **`region`** / **`plan`** before blueprint apply.
 
 ---
 
 ## 1. Create the stack from the blueprint
 
-1. In Render: **New → Blueprint**.
-2. Connect the repo and select the branch (usually `main`).
-3. Review the resources Render will create from **`render.yaml`**:
-   - **`graft-postgres`** — managed PostgreSQL (`graft_crm` database, user `graft`).
-   - **`graft-crm`** — Web service running **Next.js**.
-4. Confirm creation. Render will run the first deploy automatically.
+1. Render → **New → Blueprint**.
+2. Connect repo + branch.
+3. Confirm **`render.yaml`** creates **`graft-postgres`** and **`graft-crm`**.
+4. Confirm creation; first deploy runs automatically.
 
-`DATABASE_URL` is **injected** into the web service from the database — you do not paste it manually.
+**`DATABASE_URL`** on the web service is wired from Render Postgres — no manual paste for the default setup.
 
 ---
 
-## 2. Set environment variables (secrets)
+## 2. Environment variables
 
-In the **Web Service** → **Environment**, add values for every key marked `sync: false` in `render.yaml`. Render prompts for these during blueprint setup or you can add them afterward.
+Set **`sync: false`** secrets during blueprint setup or under **Web Service → Environment**.
 
-| Variable | Required | How to set |
-|----------|----------|------------|
-| **`AUTH_SECRET`** | Yes | `openssl rand -base64 32` |
-| **`AUTH_URL`** | Yes | Your **public** app URL, e.g. `https://graft-crm.onrender.com` — **no trailing slash**. Update this if you attach a custom domain. |
-| **`CRON_SECRET`** | Yes in production | `openssl rand -hex 32` — used to authenticate calls to `/api/cron/reminders`. |
+### Required on Render
 
-Optional (see **`.env.example`** for descriptions):
+| Variable | How to set |
+|----------|------------|
+| **`AUTH_SECRET`** | `openssl rand -base64 32` |
+| **`AUTH_URL`** | Public app URL, `https://…`, **no trailing slash** |
+| **`CRON_SECRET`** | `openssl rand -hex 32` — protects **`POST /api/cron/reminders`** |
+
+### Optional
+
+Descriptions and full names: **`README`** (environment table) and **[`src/lib/env.ts`](src/lib/env.ts)**.
 
 | Variable | Purpose |
 |----------|---------|
-| **`AUTH_INVITE_ONLY`** | Set to `true` to **disable** open sign-up; only emails that already have a **`User`** row can sign in. |
-| **`GROQ_*`** | AI summaries + transcription |
-| **`GOOGLE_*`** | Calendar OAuth + meeting scheduling |
-| **`RESEND_*` / `EMAIL_*`** | Email reminders / digests |
-| **`WISPR_WEBHOOK_SECRET`** | Wispr ingest webhook |
-| **`PG_POOL_MAX`** | Postgres pool sizing |
+| **`AUTH_INVITE_ONLY`** | `true` = no open sign-up; only existing **`User`** rows can sign in. |
+| **`GROQ_*`** | AI + transcription |
+| **`GOOGLE_*`** | Calendar OAuth (`GOOGLE_REDIRECT_URI` defaults to **`${AUTH_URL}/api/calendar/google/callback`** if unset) |
+| **`RESEND_*`**, **`EMAIL_FROM`** | Outbound email; digests go to each **`User.email`** unless **`EMAIL_DIGEST_OUTBOUND_TO`** is set |
+| **`EMAIL_DIGEST_OUTBOUND_TO`** | Optional — force **all** digests to one inbox (e.g. Resend test); omit for per-user recipients |
+| **`WISPR_WEBHOOK_SECRET`** | Wispr webhook |
+| **`PG_POOL_MAX`** | Cap `pg` pool size |
 
-Redeploy the web service after changing env vars.
+Redeploy after env changes.
 
-**Who can sign in:** By default, **first visit** users can create an account with **email + password + full name** (shared workspace data). Set **`AUTH_INVITE_ONLY=true`** to restrict to existing **`User`** rows only (seed or manual inserts). Use **Settings → Sign-in & team** in the app to inspect workspace users.
+**Sign-in:** Default = open sign-up (name + email + password, shared workspace). **`AUTH_INVITE_ONLY=true`** restricts to seeded/manual **`User`** rows. **Settings → Sign-in & team** lists users.
 
 ---
 
@@ -96,64 +128,62 @@ Redeploy the web service after changing env vars.
 | **Build** | `npm ci && npx prisma generate && npm run build` |
 | **Start** | `npx prisma migrate deploy && npm run start` |
 
-Every new release applies **pending Prisma migrations** against Render Postgres, then starts **Next.js** on the port Render provides.
+Pending Prisma migrations apply to **Render Postgres**, then Next.js starts.
 
 ---
 
 ## 4. Seed production data (first time)
 
-The seed script is **not** run automatically. After the first successful deploy:
+Seed does **not** run in **`startCommand`**. After first successful deploy:
 
-**Option A — from your laptop** (simplest):
+**Option A — from your laptop**
 
 ```bash
-export DATABASE_URL="postgresql://…"   # Internal DB URL from Render Postgres dashboard (Settings → Connections)
+export DATABASE_URL="postgresql://…"   # Render Postgres: Dashboard → **Connections** (internal or external URL per Render docs)
 npm run db:seed
 ```
 
-Use the **internal** or **external** connection string Render shows for Postgres (external requires allowed IPs / SSL per Render docs).
+**Option B — Render Shell** (if available)
 
-**Option B — Render Shell** (if enabled on your plan):
+Set **`DATABASE_URL`** to the same Postgres URL, run **`npm run db:seed`**.
 
-Open **Web Service → Shell**, install deps if needed, set `DATABASE_URL`, run `npm run db:seed`.
-
-Sign-in behavior depends on **`AUTH_INVITE_ONLY`** and seeded users — see **`prisma/seed.ts`** and **`SEED_WORKSPACE_USERS`**.
+Behavior depends on **`AUTH_INVITE_ONLY`** and **`prisma/seed.ts`** / **`SEED_WORKSPACE_USERS`**.
 
 ---
 
 ## 5. Daily digest cron
 
-Render’s managed cron product can call your app, or use **GitHub Actions** with secrets.
-
-**Recommended pattern** — scheduled workflow calling your live URL:
+Use Render Cron, GitHub Actions, or any scheduler:
 
 ```bash
 curl -sS -X POST "https://YOUR_SERVICE.onrender.com/api/cron/reminders" \
   -H "Authorization: Bearer YOUR_CRON_SECRET"
 ```
 
-Use the **same** `CRON_SECRET` value as in Render env vars.
+Use the **same** **`CRON_SECRET`** as in Render env.
 
 ---
 
-## 6. Health checks & URLs
+## 6. Health checks & OAuth URLs
 
-- **`healthCheckPath: /`** — Render pings `/`; ensure the home route responds (this app redirects `/` → `/inbox` for signed-in users — verify behavior for anonymous requests).
-- **Google OAuth**: authorized redirect URI must include  
+- **`healthCheckPath: /`** — Render health check hits **`/`** (anonymous behavior should still return a response).
+- **Google Calendar:** Authorized redirect URI must include  
   `https://YOUR_AUTH_URL/api/calendar/google/callback`  
-  (match **`AUTH_URL`** exactly).
+  exactly matching production **`AUTH_URL`**.
 
 ---
 
 ## 7. Adjusting `render.yaml`
 
-- **`plan`**: `starter` is a paid tier on Render; switch to a **free** web tier in the dashboard if needed (blueprint may need editing — confirm current Render free-tier limits).
-- **`region`**: align Postgres and Web Service for latency.
-- **Build/start**: change only if you know you need a different install or migrate strategy.
+- **`plan`**: confirm current Render pricing/free-tier limits.
+- **`region`**: align web + Postgres.
+- **Commands**: change **build**/**start** only if you have a deliberate reason.
 
 ---
 
-## Local development (same Postgres shape)
+## Local development
+
+**Isolated DB per laptop**
 
 ```bash
 docker compose up -d
@@ -163,10 +193,36 @@ npm run db:seed
 npm run dev
 ```
 
-See **`README.md`** for variable details.
+Default **`DATABASE_URL`** when unset matches **`docker-compose.yml`** — see **`README.md`**.
+
+**Shared team DB (Supabase, etc.)**
+
+See **[TEAM_DATABASE.md](./TEAM_DATABASE.md)** — everyone uses the **same** **`DATABASE_URL`** from the vault; each dev still uses **`AUTH_URL=http://localhost:3000`** and should generate **their own** **`AUTH_SECRET`** unless you standardize otherwise.
+
+---
+
+## 8. Troubleshooting
+
+### Render production
+
+- **`DATABASE_URL`**: normally injected; don’t delete the automatic mapping unless switching databases.
+- **SSL**: Render-managed Postgres usually needs no extra TLS flags in the app.
+
+### Local or Supabase (`npm run db:deploy`, `db:seed`, `npm run dev`)
+
+| Issue | What to try |
+|-------|-------------|
+| **`P1001`** Can’t reach **`db.*.supabase.co:5432`** | Supabase **direct** connections are often **IPv6-only**. Use **Session pooler** URI from **Connect** (IPv4-friendly). See **[TEAM_DATABASE.md](./TEAM_DATABASE.md)**. |
+| **`P1011`** / **self-signed certificate** / TLS | Append **`uselibpqcompat=true`** to **`DATABASE_URL`** (with **`sslmode=require`**). Dev-only escape hatch: **`DATABASE_SSL_REJECT_UNAUTHORIZED=false`** — see **`TEAM_DATABASE.md`**. **Do not** enable that on production Render unless you fully understand the risk. |
+| **`relation does not exist`** | Run **`npm run db:deploy`** against the same **`DATABASE_URL`** you use for the app. |
+
+### Repo owner vs Render ops
+
+- **You don’t need a Render login** to write code; you **do** need one (or a teammate) to operate production.
+- **No repo change** is required “because Render” beyond **`render.yaml`** and docs — secrets stay in the dashboard.
 
 ---
 
 ## Other hosts
 
-You can run the same Docker/Postgres app on any Node host by setting **`DATABASE_URL`** and running **`npm run db:deploy`** before **`npm run start`**. Vercel + Neon is possible but not documented here; use **`npm run vercel-build`** if you adopt that stack.
+Same idea: set **`DATABASE_URL`**, run **`npm run db:deploy`** before **`npm run start`**. **`npm run vercel-build`** exists for Vercel-style pipelines if you adopt that.
