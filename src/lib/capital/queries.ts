@@ -41,7 +41,7 @@ export async function getWorkspaceRunway(workspaceId: string) {
 
 export async function listWorkspaceDealsForSelect(workspaceId: string) {
   return prisma.deal.findMany({
-    where: { company: { workspaceId } },
+    where: { workspaceId },
     select: {
       id: true,
       name: true,

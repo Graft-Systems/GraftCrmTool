@@ -1,5 +1,7 @@
+import { AddInvestorForm } from "@/components/investors/add-investor-form";
 import { InvestorTable } from "@/components/investors/investor-table";
 import { INVESTOR_STAGES } from "@/lib/constants";
+import { listCompanySelectOptions } from "@/lib/companies/queries";
 import { listInvestors } from "@/lib/pipeline/queries";
 import { requireSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -19,18 +21,23 @@ export default async function InvestorsPage({ searchParams }: InvestorsPageProps
   const session = await requireSession();
   const filters = await searchParams;
 
-  const investors = await listInvestors(session.user.workspaceId, {
-    stage: filters.stage,
-  });
+  const [investors, companies] = await Promise.all([
+    listInvestors(session.user.workspaceId, {
+      stage: filters.stage,
+    }),
+    listCompanySelectOptions(session.user.workspaceId),
+  ]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Investors</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Investor-specific context attached to company records.
+          Investor-specific context attached to company records. Add or update a profile here or on the company.
         </p>
       </div>
+
+      <AddInvestorForm companies={companies} />
 
       <form method="get" className="grid gap-4 rounded-xl border bg-background p-4 md:grid-cols-3">
         <div className="space-y-2">

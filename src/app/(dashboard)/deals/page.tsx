@@ -1,6 +1,7 @@
+import { AddCompetitionForm } from "@/components/competitions/add-competition-form";
 import { DealTable } from "@/components/competitions/deal-table";
 import { DEAL_STAGES } from "@/lib/constants";
-import { listWorkspaceUsers } from "@/lib/companies/queries";
+import { listCompanySelectOptions, listWorkspaceUsers } from "@/lib/companies/queries";
 import { listDeals } from "@/lib/pipeline/queries";
 import { requireSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -27,13 +28,14 @@ export default async function DealsPage({ searchParams }: DealsPageProps) {
   const filters = await searchParams;
   const openOnly = filters.openOnly !== "0";
 
-  const [deals, users] = await Promise.all([
+  const [deals, users, companies] = await Promise.all([
     listDeals(session.user.workspaceId, {
       stage: filters.stage,
       ownerId: filters.ownerId,
       openOnly: openOnly && !filters.stage,
     }),
     listWorkspaceUsers(session.user.workspaceId),
+    listCompanySelectOptions(session.user.workspaceId),
   ]);
 
   return (
@@ -41,9 +43,12 @@ export default async function DealsPage({ searchParams }: DealsPageProps) {
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Competitions</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pitch competitions, accelerators, grants, and challenges this team is in the running for.
+          Pitch competitions, accelerators, grants, and challenges for the workspace. Link a company only when
+          it applies.
         </p>
       </div>
+
+      <AddCompetitionForm companies={companies} users={users} />
 
       <form method="get" className="grid gap-4 rounded-xl border bg-background p-4 md:grid-cols-4">
         <div className="space-y-2">

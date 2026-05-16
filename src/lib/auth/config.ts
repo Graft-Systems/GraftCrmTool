@@ -37,13 +37,16 @@ export const authConfig = {
     },
     authorized: async ({ auth, request }) => {
       const isAuthenticated = !!auth?.user;
-      const isLoginRoute = request.nextUrl.pathname.startsWith("/login");
+      const pathname = request.nextUrl.pathname;
+      const isLoginRoute = pathname.startsWith("/login");
+      const isWelcomeRoute = pathname.startsWith("/welcome");
+      const isPublicAuthRoute = isLoginRoute || isWelcomeRoute;
 
-      if (!isAuthenticated && !isLoginRoute) {
+      if (!isAuthenticated && !isPublicAuthRoute) {
         return false;
       }
 
-      if (isAuthenticated && isLoginRoute) {
+      if (isAuthenticated && (isLoginRoute || isWelcomeRoute)) {
         return Response.redirect(new URL("/inbox", request.nextUrl));
       }
 

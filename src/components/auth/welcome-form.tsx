@@ -13,27 +13,21 @@ import { Label } from "@/components/ui/label";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/constants";
 
 const emailSchema = z.string().trim().toLowerCase().email();
+const nameSchema = z.string().trim().min(1).max(120);
 
 const ERROR_MESSAGES: Record<string, string> = {
   email: "Enter a valid email address.",
+  name: "Enter your full name.",
   password_short: `Your password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
-  invite_only:
-    "Only people already added to this workspace can sign in. Ask a teammate to invite you, or use an email that's already on the team.",
-  invalid_credentials:
-    "Wrong email or password. If you're new here, use Create an account (opens in a new tab) to register with your name and password.",
-  invalid: "Couldn't sign you in. Try again.",
+  password_mismatch: "Passwords do not match.",
+  invalid_credentials: "Wrong email or password, or this email already has a different password on file.",
+  invalid: "Couldn't create your account. Try again.",
 };
 
-type LoginFormProps = {
-  initialErrorKey?: string | null;
-};
-
-export function LoginForm({ initialErrorKey }: LoginFormProps) {
+export function WelcomeForm() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
-  const [errorKey, setErrorKey] = useState<string | null>(() =>
-    initialErrorKey && initialErrorKey in ERROR_MESSAGES ? initialErrorKey : null,
-  );
+  const [errorKey, setErrorKey] = useState<string | null>(null);
 
   const errorMessage = useMemo(
     () => (errorKey ? (ERROR_MESSAGES[errorKey] ?? ERROR_MESSAGES.invalid) : null),
@@ -46,6 +40,8 @@ export function LoginForm({ initialErrorKey }: LoginFormProps) {
 
     const emailRaw = formData.get("email");
     const passwordRaw = formData.get("password");
+    const confirmRaw = formData.get("passwordConfirm");
+    const nameRaw = formData.get("name");
 
     const emailParsed = emailSchema.safeParse(typeof emailRaw === "string" ? emailRaw : "");
     if (!emailParsed.success) {
@@ -54,11 +50,26 @@ export function LoginForm({ initialErrorKey }: LoginFormProps) {
       return;
     }
 
+    const nameParsed = nameSchema.safeParse(typeof nameRaw === "string" ? nameRaw : "");
+    if (!nameParsed.success) {
+      setErrorKey("name");
+      setSubmitting(false);
+      return;
+    }
+
     const email = emailParsed.data;
+    const name = nameParsed.data;
     const password = typeof passwordRaw === "string" ? passwordRaw.trim() : "";
+    const passwordConfirm = typeof confirmRaw === "string" ? confirmRaw.trim() : "";
 
     if (password.length < PASSWORD_MIN_LENGTH) {
       setErrorKey("password_short");
+      setSubmitting(false);
+      return;
+    }
+
+    if (password !== passwordConfirm) {
+      setErrorKey("password_mismatch");
       setSubmitting(false);
       return;
     }
@@ -69,6 +80,7 @@ export function LoginForm({ initialErrorKey }: LoginFormProps) {
         redirect: false,
         email,
         password,
+        name,
         callbackUrl: `${origin}/inbox`,
       });
 
@@ -104,11 +116,10 @@ export function LoginForm({ initialErrorKey }: LoginFormProps) {
   return (
     <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-md">
       <GraftLogo />
-      <h1 className="mt-6 text-2xl font-semibold tracking-tight text-foreground">Sign in to Graft CRM</h1>
+      <h1 className="mt-6 text-2xl font-semibold tracking-tight text-foreground">Create your account</h1>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        Use your email and password. New to the workspace? Use{" "}
-        <span className="font-medium text-foreground">Create an account</span> below (opens in a new tab).
-        Everyone shares the same workspace data.
+        One shared workspace for your team. If sign-up is limited to invited members only, you’ll need to be
+        added before you can join.
       </p>
       {errorMessage ? (
         <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -124,50 +135,60 @@ export function LoginForm({ initialErrorKey }: LoginFormProps) {
         }}
       >
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="welcome-name">Full name</Label>
           <Input
-            id="email"
+            id="welcome-name"
+            name="name"
+            type="text"
+            autoComplete="name"
+            required
+            placeholder="Your name"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="welcome-email">Email</Label>
+          <Input
+            id="welcome-email"
             name="email"
             type="email"
-            autoComplete="username"
+            autoComplete="email"
             required
             placeholder="owner@graft.systems"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="welcome-password">Password</Label>
           <Input
-            id="password"
+            id="welcome-password"
             name="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete="new-password"
             required
             minLength={PASSWORD_MIN_LENGTH}
             placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
           />
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="welcome-password-confirm">Confirm password</Label>
+          <Input
+            id="welcome-password-confirm"
+            name="passwordConfirm"
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={PASSWORD_MIN_LENGTH}
+            placeholder="Re-enter your password"
+          />
+        </div>
         <Button type="submit" className="w-full" disabled={submitting}>
-          {submitting ? "Signing in…" : "Continue"}
+          {submitting ? "Creating account…" : "Create account"}
         </Button>
       </form>
-      <div className="mt-6 border-t border-border pt-6 text-center text-sm">
-        <p className="font-medium text-foreground">New here?</p>
-        <p className="mt-1 text-muted-foreground">
-          Create an account with your details — opens in a new tab.
-        </p>
-        <Link
-          href="/welcome"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-block font-medium text-primary underline-offset-4 hover:underline"
-        >
-          Create an account
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Already have an account?{" "}
+        <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+          Sign in
         </Link>
-      </div>
-      <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-        Everyone chooses their own password. Seeded workspace emails don&apos;t start with a saved password —
-        your first successful login stores the password you enter. Re-running{" "}
-        <span className="font-mono text-[11px]">npm run db:seed</span> does not reset passwords already set.
       </p>
     </div>
   );

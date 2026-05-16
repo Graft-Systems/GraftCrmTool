@@ -70,7 +70,7 @@ export async function getCompanyPartnerProfile(companyId: string) {
 
 export async function listDeals(workspaceId: string, filters: DealListFilters = {}) {
   const where: Prisma.DealWhereInput = {
-    company: { workspaceId },
+    workspaceId,
   };
 
   if (filters.ownerId) {

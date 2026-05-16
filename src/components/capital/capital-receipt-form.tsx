@@ -10,7 +10,7 @@ type CapitalReceiptFormProps = {
   deals: Array<{
     id: string;
     name: string;
-    company: { name: string };
+    company: { name: string } | null;
   }>;
 };
 
@@ -52,7 +52,8 @@ export function CapitalReceiptForm({ deals }: CapitalReceiptFormProps) {
           <option value="">None</option>
           {deals.map((deal) => (
             <option key={deal.id} value={deal.id}>
-              {deal.name} · {deal.company.name}
+              {deal.name}
+              {deal.company ? ` · ${deal.company.name}` : ""}
             </option>
           ))}
         </select>

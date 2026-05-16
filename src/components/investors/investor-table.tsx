@@ -20,6 +20,7 @@ type InvestorTableProps = {
     checkSizeBand: string | null;
     thesisTags: string[];
     nextStep: string | null;
+    notes: string | null;
     updatedAt: Date;
     company: { id: string; name: string };
   }>;
@@ -45,6 +46,7 @@ export function InvestorTable({ investors }: InvestorTableProps) {
           <TableRow>
             <TableHead>Company</TableHead>
             <TableHead>Fund</TableHead>
+            <TableHead className="max-w-56">Additional</TableHead>
             <TableHead>Stage</TableHead>
             <TableHead>Check size</TableHead>
             <TableHead>Thesis tags</TableHead>
@@ -61,6 +63,11 @@ export function InvestorTable({ investors }: InvestorTableProps) {
                 </Link>
               </TableCell>
               <TableCell>{investor.fundName ?? "—"}</TableCell>
+              <TableCell className="max-w-56">
+                <p className="text-sm text-muted-foreground">
+                  {summarizeText(investor.notes, 100) || "—"}
+                </p>
+              </TableCell>
               <TableCell>
                 <Badge variant="secondary">{stageLabel(investor.stage)}</Badge>
               </TableCell>

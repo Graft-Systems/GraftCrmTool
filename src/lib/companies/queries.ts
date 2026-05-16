@@ -134,3 +134,12 @@ export async function listKnownTags(workspaceId: string) {
 
   return [...tags].sort((a, b) => a.localeCompare(b));
 }
+
+/** Minimal list for dropdowns (competitions / investors add-from-pipeline). */
+export async function listCompanySelectOptions(workspaceId: string) {
+  return prisma.company.findMany({
+    where: { workspaceId },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+}

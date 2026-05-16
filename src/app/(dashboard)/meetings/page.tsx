@@ -90,10 +90,8 @@ export default async function MeetingsPage({ searchParams }: MeetingsPageProps) 
         <section className="rounded-xl border border-dashed bg-background p-6">
           <h2 className="text-lg font-semibold">Connect a calendar</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Google OAuth requires a Cloud project (configure
-            <code className="mx-1 rounded bg-muted px-1">GOOGLE_CLIENT_ID</code>and
-            <code className="mx-1 rounded bg-muted px-1">GOOGLE_CLIENT_SECRET</code>). Until then, use the demo
-            calendar to test the flow with seeded events, or add meetings manually below.
+            Live Google Calendar needs OAuth set up for this deployment. Until then, use the demo calendar to test
+            the flow with seeded events, or add meetings manually below.
           </p>
           <form action={connectDemoCalendarAction} className="mt-3">
             <Button type="submit">Connect demo calendar</Button>

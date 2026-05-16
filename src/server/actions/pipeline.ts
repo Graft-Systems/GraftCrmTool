@@ -210,13 +210,42 @@ export async function createDealAction(companyId: string, formData: FormData) {
 
   await prisma.deal.create({
     data: {
-      companyId,
+      workspaceId: company.workspaceId,
+      companyId: company.id,
       ...dealDataFromParsed(parsed),
     },
   });
 
   await touchCompany(companyId);
   revalidatePipelinePaths(companyId);
+}
+
+/** Reads optional `companyId` from the form — competition can exist without a company. */
+export async function createDealWithCompanyPickerAction(formData: FormData) {
+  const session = await requireSession();
+  const parsed = parseDealForm(formData);
+  const raw = formData.get("companyId");
+  const companyId = typeof raw === "string" && raw.trim() ? raw.trim() : null;
+
+  if (companyId) {
+    const company = await getCompanyForWorkspace(session.user.workspaceId, companyId);
+    if (!company) {
+      throw new Error("Company not found.");
+    }
+  }
+
+  await prisma.deal.create({
+    data: {
+      workspaceId: session.user.workspaceId,
+      companyId,
+      ...dealDataFromParsed(parsed),
+    },
+  });
+
+  if (companyId) {
+    await touchCompany(companyId);
+  }
+  revalidatePipelinePaths(companyId ?? undefined);
 }
 
 export async function updateDealAction(dealId: string, formData: FormData) {
@@ -226,7 +255,7 @@ export async function updateDealAction(dealId: string, formData: FormData) {
   const deal = await prisma.deal.findFirst({
     where: {
       id: dealId,
-      company: { workspaceId: session.user.workspaceId },
+      workspaceId: session.user.workspaceId,
     },
   });
 
@@ -239,8 +268,10 @@ export async function updateDealAction(dealId: string, formData: FormData) {
     data: dealDataFromParsed(parsed),
   });
 
-  await touchCompany(deal.companyId);
-  revalidatePipelinePaths(deal.companyId);
+  if (deal.companyId) {
+    await touchCompany(deal.companyId);
+  }
+  revalidatePipelinePaths(deal.companyId ?? undefined);
 }
 
 export async function createPilotAction(companyId: string, formData: FormData) {
@@ -376,6 +407,15 @@ export async function upsertInvestorProfileAction(companyId: string, formData: F
 
   await touchCompany(companyId);
   revalidatePipelinePaths(companyId);
+}
+
+/** Same as upsertInvestorProfileAction; reads `companyId` from the form (Investors page). */
+export async function upsertInvestorWithCompanyPickerAction(formData: FormData) {
+  const raw = formData.get("companyId");
+  if (typeof raw !== "string" || !raw.trim()) {
+    throw new Error("Choose a company.");
+  }
+  await upsertInvestorProfileAction(raw.trim(), formData);
 }
 
 export async function upsertPartnerProfileAction(companyId: string, formData: FormData) {

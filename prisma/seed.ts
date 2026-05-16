@@ -205,6 +205,7 @@ async function main() {
   const sampleDeal = await prisma.deal.upsert({
     where: { id: "seed-deal-acme-platform" },
     update: {
+      workspaceId: workspace.id,
       companyId: sampleCompany.id,
       name: "Platform rollout",
       stage: "proposal",
@@ -215,6 +216,7 @@ async function main() {
     },
     create: {
       id: "seed-deal-acme-platform",
+      workspaceId: workspace.id,
       companyId: sampleCompany.id,
       name: "Platform rollout",
       stage: "proposal",

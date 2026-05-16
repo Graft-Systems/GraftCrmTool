@@ -91,7 +91,7 @@ export async function createCapitalReceiptAction(formData: FormData) {
 
   if (parsed.dealId) {
     const deal = await prisma.deal.findFirst({
-      where: { id: parsed.dealId, company: { workspaceId: session.user.workspaceId } },
+      where: { id: parsed.dealId, workspaceId: session.user.workspaceId },
     });
     if (!deal) {
       throw new Error("Deal not found.");
@@ -111,5 +111,17 @@ export async function createCapitalReceiptAction(formData: FormData) {
     },
   });
 
+  revalidatePath("/runway");
+}
+
+export async function deleteCapitalReceiptAction(receiptId: string) {
+  const session = await requireSession();
+  const receipt = await prisma.capitalReceipt.findFirst({
+    where: { id: receiptId, workspaceId: session.user.workspaceId },
+  });
+  if (!receipt) {
+    throw new Error("Receipt not found.");
+  }
+  await prisma.capitalReceipt.delete({ where: { id: receiptId } });
   revalidatePath("/runway");
 }

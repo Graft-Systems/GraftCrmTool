@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DEAL_STAGES } from "@/lib/constants";
-import { formatDate } from "@/lib/crm";
+import { formatDate, summarizeText } from "@/lib/crm";
 
 type DealTableProps = {
   deals: Array<{
@@ -22,8 +22,9 @@ type DealTableProps = {
     startsAt: Date | null;
     endsAt: Date | null;
     link: string | null;
-    company: { id: string; name: string };
+    company: { id: string; name: string } | null;
     owner: { name: string | null; email: string } | null;
+    notes: string | null;
   }>;
 };
 
@@ -68,6 +69,7 @@ export function DealTable({ deals }: DealTableProps) {
           <TableRow>
             <TableHead>Competition</TableHead>
             <TableHead>Company</TableHead>
+            <TableHead className="max-w-56">Additional</TableHead>
             <TableHead>Stage</TableHead>
             <TableHead>Lead</TableHead>
             <TableHead>Dates</TableHead>
@@ -92,9 +94,18 @@ export function DealTable({ deals }: DealTableProps) {
                 ) : null}
               </TableCell>
               <TableCell>
-                <Link href={`/companies/${deal.company.id}`} className="hover:underline">
-                  {deal.company.name}
-                </Link>
+                {deal.company ? (
+                  <Link href={`/companies/${deal.company.id}`} className="hover:underline">
+                    {deal.company.name}
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </TableCell>
+              <TableCell className="max-w-56">
+                <p className="text-sm text-muted-foreground">
+                  {summarizeText(deal.notes, 100) || "—"}
+                </p>
               </TableCell>
               <TableCell>
                 <Badge variant="secondary">{stageLabel(deal.stage)}</Badge>

@@ -4,6 +4,8 @@ import { ConicSplitPie } from "@/components/capital/conic-split-pie";
 import { CapitalReceiptForm } from "@/components/capital/capital-receipt-form";
 import { SplitBucketsEditor } from "@/components/capital/split-buckets-editor";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { deleteCapitalReceiptAction } from "@/server/actions/capital";
 import { getWorkspaceRunway, listWorkspaceDealsForSelect } from "@/lib/capital/queries";
 import { CAPITAL_RECEIPT_SOURCES } from "@/lib/constants";
 import { formatDate } from "@/lib/crm";
@@ -94,7 +96,8 @@ export default async function RunwayPage() {
                 </p>
                 {receipt.deal ? (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Deal: {receipt.deal.name} ({receipt.deal.company.name})
+                    Deal: {receipt.deal.name}
+                    {receipt.deal.company ? ` (${receipt.deal.company.name})` : ""}
                   </p>
                 ) : null}
                 {receipt.notes ? (
@@ -102,6 +105,18 @@ export default async function RunwayPage() {
                 ) : null}
                 <div className="mt-6 flex flex-1 flex-col items-center justify-center border-t pt-6">
                   <ConicSplitPie amount={receipt.amount} buckets={runway.splitBuckets} />
+                </div>
+                <div className="mt-4 border-t pt-4">
+                  <form action={deleteCapitalReceiptAction.bind(null, receipt.id)} className="flex justify-end">
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      Delete receipt
+                    </Button>
+                  </form>
                 </div>
               </article>
             ))}

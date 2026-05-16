@@ -162,11 +162,9 @@ export default async function SettingsPage({
       ) : null}
       {cal.calendar === "google_error" || cal.calendar === "google_config" ? (
         <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          Could not connect Google Calendar. Check{" "}
-          <code className="rounded bg-muted px-1">GOOGLE_CLIENT_ID</code> /{" "}
-          <code className="rounded bg-muted px-1">GOOGLE_CLIENT_SECRET</code>, redirect URI (must match OAuth
-          client exactly), that <strong className="font-medium">OAuth consent scopes</strong> include calendar +{" "}
-          userinfo/email, and credentials are for the{" "}
+          Could not connect Google Calendar. Check your Google Cloud OAuth client: app credentials, redirect URI
+          (must match exactly), <strong className="font-medium">OAuth consent scopes</strong> for calendar and
+          profile/email, and that everything lives in the{" "}
           <strong className="font-medium">same Google Cloud project</strong>.
           {cal.detail ? (
             <>
@@ -213,23 +211,26 @@ export default async function SettingsPage({
           </div>
           <div className="space-y-2 rounded-lg border p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Cron endpoint</p>
+              <p className="text-sm font-medium">Daily automation</p>
               <Badge variant={cronSecretConfigured ? "default" : "outline"}>
-                {cronSecretConfigured ? "Secret set" : "Open in dev"}
+                {cronSecretConfigured ? "Protected" : "Dev only"}
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Schedule a daily POST to <code className="rounded bg-muted px-1">/api/cron/reminders</code>{" "}
-              (Vercel Cron, GitHub Actions, etc.).
+              In production, schedule a daily request to{" "}
+              <code className="rounded bg-muted px-1">/api/cron/reminders</code> using your host&apos;s cron or
+              another scheduler.
               {cronSecretConfigured ? (
                 <>
-                  {" "}Pass <code className="rounded bg-muted px-1">Authorization: Bearer $CRON_SECRET</code>{" "}
-                  or <code className="rounded bg-muted px-1">?token=$CRON_SECRET</code>.
+                  {" "}
+                  Include the <strong className="font-medium text-foreground">Bearer token</strong> or signed
+                  query parameter your team configured on the server so only your automation can run digests.
                 </>
               ) : (
                 <>
-                  {" "}Set <code className="rounded bg-muted px-1">CRON_SECRET</code> in production to lock this
-                  endpoint down.
+                  {" "}
+                  Production uses a shared server secret so random callers can&apos;t trigger sends; local dev
+                  skips that check.
                 </>
               )}
             </p>
@@ -302,8 +303,7 @@ export default async function SettingsPage({
           <h2 className="text-lg font-semibold">Calendar integrations</h2>
           <p className="text-sm text-muted-foreground">
             Sync your calendar so external meetings surface in the CRM. Demo mode works out of the box for
-            evaluation. Real Google sync activates once <code className="rounded bg-muted px-1">GOOGLE_CLIENT_ID</code>
-            and <code className="rounded bg-muted px-1">GOOGLE_CLIENT_SECRET</code> are set.
+            evaluation. Live Google Calendar uses OAuth configured for this deployment by your administrator.
           </p>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
@@ -334,7 +334,7 @@ export default async function SettingsPage({
               </Link>
             ) : (
               <Button type="button" variant="outline" size="sm" disabled>
-                Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable
+                Google Calendar not enabled for this deployment
               </Button>
             )}
           </div>
@@ -417,9 +417,10 @@ export default async function SettingsPage({
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Once Wispr partner access is approved, set <code className="rounded bg-muted px-1">WISPR_WEBHOOK_SECRET</code>{" "}
-              and point Wispr to <code className="rounded bg-muted px-1">/api/webhooks/wispr</code>. Signed payloads
-              are converted to ingests automatically.
+              Once Wispr partner access is approved, your administrator finishes webhook verification; Wispr should
+              send signed events to{" "}
+              <code className="rounded bg-muted px-1">/api/webhooks/wispr</code>. Payloads are turned into drafts
+              automatically.
             </p>
             <Button type="button" variant="outline" size="sm" disabled>
               {wisprApiConfigured ? "Connect Wispr (coming soon)" : "Awaiting partner credentials"}
